@@ -31,33 +31,35 @@ export interface IUserService {
   /**
    * Get user by ID
    */
-  getUserById(userId: number): Promise<ServiceResponse<User>>;
+  getUserById(userId: string): Promise<ServiceResponse<Omit<User, 'password'>>>;
 
   /**
    * Get user by email
    */
-  getUserByEmail(email: string): Promise<ServiceResponse<User>>;
+  getUserByEmail(email: string): Promise<ServiceResponse<Omit<User, 'password'>>>;
 
   /**
    * Get all users with pagination
    */
-  getAllUsers(pagination: PaginationParams): Promise<ServiceResponse<IUserResponse>>;
+  getAllUsers(
+    pagination: PaginationParams & { search?: string },
+  ): Promise<ServiceResponse<IUserResponse>>;
 
   /**
    * Update user
    */
   updateUser(
-    userId: number,
+    userId: string,
     userData: Partial<Omit<User, 'id' | 'email' | 'createdAt' | 'updatedAt'>>,
-  ): Promise<ServiceResponse<User>>;
+  ): Promise<ServiceResponse<Omit<User, 'password'>>>;
 
   /**
    * Delete user
    */
-  deleteUser(userId: number): Promise<ServiceResponse<void>>;
+  deleteUser(userId: string): Promise<ServiceResponse<void>>;
 
   /**
    * Verify user password
    */
-  verifyPassword(email: string, password: string): Promise<ServiceResponse<User>>;
+  verifyPassword(email: string, password: string): Promise<ServiceResponse<Omit<User, 'password'>>>;
 }

@@ -3,7 +3,13 @@ import { type Request, type Response } from 'express';
 import { asyncHandler } from '../middleware/async.middleware';
 import { UserService } from '../services';
 import { type IUserService } from '../types';
-import { sendSuccess, BadRequestError, NotFoundError } from '../utils';
+import {
+  sendSuccess,
+  BadRequestError,
+  NotFoundError,
+  userResponse,
+  commonResponse,
+} from '../utils';
 
 export class UserController {
   private readonly userService: IUserService;
@@ -18,15 +24,16 @@ export class UserController {
   getAllUsers = asyncHandler(async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string, 10) || 1;
     const limit = parseInt(req.query.limit as string, 10) || 10;
+    const search = req.query.search as string | undefined;
 
     if (page < 1 || limit < 1) {
-      throw new BadRequestError('Page and limit must be positive integers');
+      throw new BadRequestError(commonResponse.errors.validationFailed);
     }
 
-    const result = await this.userService.getAllUsers({ page, limit });
+    const result = await this.userService.getAllUsers({ page, limit, search });
 
     if (!result.success) {
-      throw new BadRequestError(result.error ?? 'Failed to retrieve users');
+      throw new BadRequestError(result.error ?? userResponse.errors.listFailed);
     }
 
     sendSuccess(res, result.data);
@@ -36,16 +43,12 @@ export class UserController {
    * Get user by ID
    */
   getUserById = asyncHandler(async (req: Request, res: Response) => {
-    const userId = parseInt(req.params.id, 10);
-
-    if (isNaN(userId)) {
-      throw new BadRequestError('Invalid user ID');
-    }
+    const userId = req.params.id;
 
     const result = await this.userService.getUserById(userId);
 
     if (!result.success) {
-      throw new NotFoundError(result.error ?? 'Failed to retrieve user');
+      throw new NotFoundError(result.error ?? userResponse.errors.notFound);
     }
 
     sendSuccess(res, result.data);
@@ -59,7 +62,7 @@ export class UserController {
 
     // Validate required fields
     if (!email || !password) {
-      throw new BadRequestError('Email and password are required');
+      throw new BadRequestError(commonResponse.errors.validationFailed);
     }
 
     const result = await this.userService.createUser({
@@ -71,21 +74,17 @@ export class UserController {
     });
 
     if (!result.success) {
-      throw new BadRequestError(result.error ?? 'Failed to create user');
+      throw new BadRequestError(result.error ?? userResponse.errors.creationFailed);
     }
 
-    sendSuccess(res, result.data, 'User created successfully');
+    sendSuccess(res, result.data, userResponse.success.created);
   });
 
   /**
    * Update user
    */
   updateUser = asyncHandler(async (req: Request, res: Response) => {
-    const userId = parseInt(req.params.id, 10);
-
-    if (isNaN(userId)) {
-      throw new BadRequestError('Invalid user ID');
-    }
+    const userId = req.params.id;
 
     const { firstName, lastName, password, role, isActive } = req.body;
 
@@ -98,28 +97,24 @@ export class UserController {
     });
 
     if (!result.success) {
-      throw new NotFoundError(result.error ?? 'Failed to update user');
+      throw new NotFoundError(result.error ?? userResponse.errors.updateFailed);
     }
 
-    sendSuccess(res, result.data, 'User updated successfully');
+    sendSuccess(res, result.data, userResponse.success.updated);
   });
 
   /**
    * Delete user
    */
   deleteUser = asyncHandler(async (req: Request, res: Response) => {
-    const userId = parseInt(req.params.id, 10);
-
-    if (isNaN(userId)) {
-      throw new BadRequestError('Invalid user ID');
-    }
+    const userId = req.params.id;
 
     const result = await this.userService.deleteUser(userId);
 
     if (!result.success) {
-      throw new NotFoundError(result.error ?? 'Failed to delete user');
+      throw new NotFoundError(result.error ?? userResponse.errors.deleteFailed);
     }
 
-    sendSuccess(res, undefined, 'User deleted successfully');
+    sendSuccess(res, undefined, userResponse.success.deleted);
   });
 }

@@ -1,0 +1,237 @@
+paths:
+  /guests:
+    post:
+      summary: Create a new guest
+      tags: [Guests]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuestCreateRequest'
+      responses:
+        '201':
+          description: Guest created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuestCreateResponse'
+    get:
+      summary: List guests with pagination and filters
+      tags: [Guests]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          description: Page size
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/GuestStatusEnum'
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search by name or username
+      responses:
+        '200':
+          description: Paginated guest list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuestListResponse'
+  /guests/{id}:
+    get:
+      summary: Get guest by ID
+      tags: [Guests]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Guest details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Guest'
+    put:
+      summary: Update guest
+      tags: [Guests]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuestUpdateRequest'
+      responses:
+        '200':
+          description: Guest updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Guest'
+    delete:
+      summary: Delete guest
+      tags: [Guests]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Guest deleted
+  /guests/{id}/credentials:
+    get:
+      summary: Get guest credentials (one-time view)
+      tags: [Guests]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Guest credentials (one-time)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuestCredentialsResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Guest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+        lastName:
+          type: string
+        location:
+          type: string
+        role:
+          $ref: '#/components/schemas/GuestRoleEnum'
+        accessPeriod:
+          type: string
+        username:
+          type: string
+        status:
+          $ref: '#/components/schemas/GuestStatusEnum'
+        credentialsViewed:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    GuestCreateRequest:
+      type: object
+      required: [firstName, lastName, location, role, accessPeriod, generateCredentials]
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        location:
+          type: string
+        role:
+          $ref: '#/components/schemas/GuestRoleEnum'
+        accessPeriod:
+          type: string
+        generateCredentials:
+          type: boolean
+    GuestUpdateRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        location:
+          type: string
+        role:
+          $ref: '#/components/schemas/GuestRoleEnum'
+        accessPeriod:
+          type: string
+    GuestCreateResponse:
+      type: object
+      properties:
+        guest:
+          $ref: '#/components/schemas/Guest'
+        username:
+          type: string
+        password:
+          type: string
+    GuestCredentialsResponse:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+        warning:
+          type: string
+          example: Copy these credentials now. They will not be shown again.
+    GuestListResponse:
+      type: object
+      properties:
+        guests:
+          type: array
+          items:
+            $ref: '#/components/schemas/Guest'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        totalPages:
+          type: integer
+    GuestRoleEnum:
+      type: string
+      enum: ['Stock Manager', 'Store Keeper']
+    GuestStatusEnum:
+      type: string
+      enum: ['Active', 'Inactive', 'Expired']

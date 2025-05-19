@@ -1,9 +1,8 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-
+import { drizzle } from 'drizzle-orm/node-postgres';
 import { logger } from '../utils/logger';
-
 import env from './env.config';
+import * as schema from '../models';
 
 // Initialize pool with default config (will be properly initialized in initDatabaseConnection)
 let pool = new Pool();
@@ -12,7 +11,7 @@ let pool = new Pool();
 let isPoolClosed = false;
 
 // Initialize Drizzle with the connection pool
-export const db = drizzle(pool);
+export const db = drizzle(pool, { schema });
 
 // Function to initialize database connection with proper config
 export const initDatabaseConnection = async (): Promise<void> => {
@@ -45,7 +44,7 @@ export const initDatabaseConnection = async (): Promise<void> => {
     pool = newPool;
 
     // Reinitialize drizzle with the new pool
-    Object.assign(db, drizzle(pool));
+    Object.assign(db, drizzle(pool, { schema }));
 
     logger.info('✅ Database connection initialized with environment configuration');
   } catch (error) {

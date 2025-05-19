@@ -2,8 +2,14 @@ import { type Request, type Response } from 'express';
 
 import { asyncHandler } from '../middleware/async.middleware';
 import { AuthService } from '../services';
-import { type AuthRequest, type IAuthService } from '../types';
-import { sendSuccess, BadRequestError, UnauthorizedError } from '../utils';
+import { type IAuthService } from '../types';
+import {
+  sendSuccess,
+  BadRequestError,
+  UnauthorizedError,
+  authResponse,
+  commonResponse,
+} from '../utils';
 
 export class AuthController {
   private readonly authService: IAuthService;
@@ -20,7 +26,7 @@ export class AuthController {
 
     // Validate required fields
     if (!email || !password) {
-      throw new BadRequestError('Email and password are required');
+      throw new BadRequestError(commonResponse.errors.validationFailed);
     }
 
     const result = await this.authService.register({
@@ -32,10 +38,10 @@ export class AuthController {
     });
 
     if (!result.success) {
-      throw new BadRequestError(result.error ?? 'Registration failed');
+      throw new BadRequestError(result.error ?? authResponse.errors.loginFailed);
     }
 
-    sendSuccess(res, result.data, 'User registered successfully', result.statusCode);
+    sendSuccess(res, result.data, authResponse.success.loggedIn, result.statusCode);
   });
 
   /**
@@ -46,47 +52,15 @@ export class AuthController {
 
     // Validate required fields
     if (!email || !password) {
-      throw new BadRequestError('Email and password are required');
+      throw new BadRequestError(commonResponse.errors.validationFailed);
     }
 
     const result = await this.authService.login(email, password);
 
     if (!result.success) {
-      throw new UnauthorizedError(result.error ?? 'Login failed');
+      throw new UnauthorizedError(result.error ?? authResponse.errors.loginFailed);
     }
 
-    sendSuccess(res, result.data, 'Login successful');
-  });
-
-  /**
-   * Get current user
-   */
-  getCurrentUser = asyncHandler(async (req: AuthRequest, res: Response) => {
-    if (!req.user) {
-      throw new UnauthorizedError('User not authenticated');
-    }
-
-    sendSuccess(res, {
-      userId: req.user.userId,
-      email: req.user.email,
-      role: req.user.role,
-    });
-  });
-
-  /**
-   * Refresh token
-   */
-  refreshToken = asyncHandler(async (req: AuthRequest, res: Response) => {
-    if (!req.user) {
-      throw new UnauthorizedError('User not authenticated');
-    }
-
-    const result = await this.authService.refreshToken(Number(req.user?.id));
-
-    if (!result.success) {
-      throw new BadRequestError(result.error ?? 'Token refresh failed');
-    }
-
-    sendSuccess(res, result.data, 'Token refreshed successfully');
+    sendSuccess(res, result.data, authResponse.success.loggedIn);
   });
 }

@@ -23,6 +23,11 @@ paths:
             maximum: 100
             default: 10
           description: Number of users per page
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search term for filtering users by name or email
       responses:
         '200':
           description: List of users
@@ -134,8 +139,8 @@ paths:
           name: id
           required: true
           schema:
-            type: integer
-          description: User ID
+            type: string
+            format: uuid
       responses:
         '200':
           description: User details
@@ -169,8 +174,8 @@ paths:
           name: id
           required: true
           schema:
-            type: integer
-          description: User ID
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -234,8 +239,8 @@ paths:
           name: id
           required: true
           schema:
-            type: integer
-          description: User ID
+            type: string
+            format: uuid
       responses:
         '200':
           description: User deleted successfully

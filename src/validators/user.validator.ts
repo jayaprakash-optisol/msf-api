@@ -2,7 +2,7 @@ import { createValidator } from '../utils/validator.util';
 import { z } from 'zod';
 
 // User role enum
-export const roleEnum = z.enum(['admin', 'user']);
+export const roleEnum = z.enum(['Admin', 'User']);
 
 // Zod schema for validating user registration
 export const registerSchema = z.object({

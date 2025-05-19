@@ -8,10 +8,11 @@ import {
 } from '../types';
 import {
   BadRequestError,
-  NotFoundError,
   UnauthorizedError,
   _ok,
   handleServiceError,
+  authResponse,
+  userResponse,
 } from '../utils';
 import { jwtUtil } from '../utils/jwt.util';
 
@@ -51,13 +52,13 @@ export class AuthService implements IAuthService {
       const result = await this.userService.createUser(userData);
 
       if (!result.success || !result.data) {
-        throw new BadRequestError(result.error ?? 'Failed to create user');
+        throw new BadRequestError(result.error ?? userResponse.errors.creationFailed);
       }
 
       const { password: _password, ...userWithoutPassword } = result.data;
-      return _ok(userWithoutPassword, 'User registered successfully', result.statusCode);
+      return _ok(userWithoutPassword, userResponse.success.created, result.statusCode);
     } catch (error) {
-      throw handleServiceError(error, 'User registration failed');
+      throw handleServiceError(error, userResponse.errors.creationFailed);
     }
   }
 
@@ -70,66 +71,33 @@ export class AuthService implements IAuthService {
   async login(
     email: string,
     password: string,
-  ): Promise<ServiceResponse<{ user: User; token: string }>> {
+  ): Promise<ServiceResponse<{ user: Omit<User, 'password'>; token: string }>> {
     try {
       // Verify password
       const verifyResult = await this.userService.verifyPassword(email, password);
 
       if (!verifyResult.success || !verifyResult.data) {
-        throw new UnauthorizedError(verifyResult.error ?? 'Invalid credentials');
+        throw new UnauthorizedError(verifyResult.error ?? authResponse.errors.invalidCredentials);
       }
 
       // Generate JWT token
+      const payload: JwtPayload = {
+        userId: verifyResult.data.id,
+        email: verifyResult.data.email,
+        role: verifyResult.data.role,
+      };
 
-      const token = this.generateToken(verifyResult.data);
+      const token = jwtUtil.generateToken(payload);
 
       return _ok(
         {
           user: verifyResult.data,
           token,
         },
-        'Login successful',
+        authResponse.success.loggedIn,
       );
     } catch (error) {
-      throw handleServiceError(error, 'Login failed');
-    }
-  }
-
-  /**
-   * Generate JWT token
-   * @param user - The user to generate the token for
-   * @returns The generated token
-   */
-  private generateToken(user: User): string {
-    const payload: JwtPayload = {
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-    };
-
-    return jwtUtil.generateToken(payload);
-  }
-
-  /**
-   * Refresh token
-   * @param userId - The ID of the user to refresh the token for
-   * @returns A service response containing the refreshed token
-   */
-  async refreshToken(userId: number): Promise<ServiceResponse<{ token: string }>> {
-    try {
-      // Get user by ID
-      const userResult = await this.userService.getUserById(userId);
-
-      if (!userResult.success || !userResult.data) {
-        throw new NotFoundError('User not found');
-      }
-
-      // Generate new token
-      const token = this.generateToken(userResult.data);
-
-      return _ok({ token }, 'Token refreshed successfully');
-    } catch (error) {
-      throw handleServiceError(error, 'Token refresh failed');
+      throw handleServiceError(error, authResponse.errors.loginFailed);
     }
   }
 }

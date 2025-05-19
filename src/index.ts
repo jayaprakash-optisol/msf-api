@@ -19,7 +19,7 @@ import {
   frameGuard,
   hsts,
   noSniff,
-  rateLimiter,
+  // rateLimiter,
   xssFilter,
 } from './middleware';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
@@ -77,7 +77,7 @@ export async function configureApp(): Promise<void> {
   }
 
   // Apply rate limiter to API routes
-  app.use(`${env.API_PREFIX}`, rateLimiter());
+  // app.use(`${env.API_PREFIX}`, rateLimiter());
 
   // Configure web API routes with versioning
   app.use(env.API_PREFIX, routes);

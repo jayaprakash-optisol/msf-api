@@ -19,7 +19,7 @@ export interface AuthRequest extends Request {
  * JWT payload type
  */
 export interface JwtPayload {
-  userId: number;
+  userId: string;
   email: string;
   role: string;
   [key: string]: unknown;
@@ -39,10 +39,8 @@ export interface IAuthService {
   /**
    * Login user
    */
-  login(email: string, password: string): Promise<ServiceResponse<{ user: User; token: string }>>;
-
-  /**
-   * Refresh token
-   */
-  refreshToken(userId: number): Promise<ServiceResponse<{ token: string }>>;
+  login(
+    email: string,
+    password: string,
+  ): Promise<ServiceResponse<{ user: Omit<User, 'password'>; token: string }>>;
 }

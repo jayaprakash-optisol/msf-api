@@ -50,7 +50,7 @@ export class JwtUtil implements IJwtUtil {
       logger.error('Error verifying JWT token:', error);
 
       // Empty JwtPayload object for error case
-      const emptyPayload: JwtPayload = { userId: 0, email: '', role: '' };
+      const emptyPayload: JwtPayload = { userId: '', email: '', role: '' };
 
       // Handle specific token errors
       if ((error as Error)?.name === 'TokenExpiredError') {

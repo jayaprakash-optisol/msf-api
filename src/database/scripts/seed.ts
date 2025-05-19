@@ -1,8 +1,8 @@
 import bcrypt from 'bcrypt';
 
-import { db } from '../../config/database.config';
+import { db, initDatabaseConnection } from '../../config/database.config';
 import env from '../../config/env.config';
-import { users } from '../../models/users.schema';
+import { users, guests } from '../../models';
 import { logger } from '../../utils/logger';
 
 // Hash password function
@@ -21,7 +21,7 @@ async function seedUsers() {
         password: hashedPassword,
         firstName: 'Admin',
         lastName: 'User',
-        role: 'admin',
+        role: 'Admin',
         isActive: true,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -31,17 +31,7 @@ async function seedUsers() {
         password: hashedPassword,
         firstName: 'Regular',
         lastName: 'User',
-        role: 'user',
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        email: 'manager@yopmail.com',
-        password: hashedPassword,
-        firstName: 'Manager',
-        lastName: 'User',
-        role: 'user',
+        role: 'User',
         isActive: true,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -55,13 +45,54 @@ async function seedUsers() {
   }
 }
 
+// Insert sample guests
+async function seedGuests() {
+  try {
+    const hashedPassword = await hashPassword('GuestPass123!');
+    await db.insert(guests).values([
+      {
+        firstName: 'Lincoln',
+        lastName: 'Burrows',
+        location: 'Warehouse A',
+        role: 'Stock Manager',
+        accessPeriod: '1 week',
+        username: 'Lincoln.Burrows1',
+        password: hashedPassword,
+        status: 'Active',
+        credentialsViewed: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        firstName: 'Michael',
+        lastName: 'Scofield',
+        location: 'Store B',
+        role: 'Store Keeper',
+        accessPeriod: '2 days',
+        username: 'Michael.Scofield1',
+        password: hashedPassword,
+        status: 'Inactive',
+        credentialsViewed: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+    logger.info('🌱 Guests seeded successfully');
+  } catch (error) {
+    logger.error('❌ Error seeding guests:', error);
+    throw error;
+  }
+}
+
 async function seed() {
   try {
-    logger.info('🌱 Starting database seeding...');
+    logger.info('✅ Starting database seeding...');
+    await initDatabaseConnection();
 
     await seedUsers();
+    await seedGuests();
 
-    logger.info('✅ Database seeding completed successfully');
+    logger.info('🌱 Database seeding completed successfully');
     process.exit(0);
   } catch (error) {
     logger.error('❌ Database seeding failed:', error);

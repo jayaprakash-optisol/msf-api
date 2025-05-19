@@ -1,9 +1,8 @@
 import bcrypt from 'bcrypt';
-import { eq, getTableColumns } from 'drizzle-orm';
+import { eq, or, sql, SQL } from 'drizzle-orm';
 import { StatusCodes } from 'http-status-codes';
 
 import { db } from '../config/database.config';
-import env from '../config/env.config';
 import { users } from '../models';
 import {
   IUserResponse,
@@ -20,7 +19,10 @@ import {
   UnauthorizedError,
   _ok,
   handleServiceError,
+  userResponse,
 } from '../utils';
+import { hashPassword } from '../utils/encryption.util';
+import { buildPaginationAndFilters } from '../utils/pagination.util';
 
 export class UserService implements IUserService {
   private static instance: UserService;
@@ -46,7 +48,7 @@ export class UserService implements IUserService {
     try {
       const existingUser = await this.getUserByEmail(email);
       if (existingUser.success && existingUser.data) {
-        throw new ConflictError('Email already in use');
+        throw new ConflictError(userResponse.errors.emailExists);
       }
       return _ok(undefined, 'Email is available');
     } catch (error) {
@@ -68,7 +70,7 @@ export class UserService implements IUserService {
   ): Promise<ServiceResponse<User>> {
     try {
       // Hash password
-      const hashedPassword = await this.hashPassword(userData.password);
+      const hashedPassword = await hashPassword(userData.password);
 
       // Insert user into database with hashed password
       const result = await db
@@ -80,12 +82,12 @@ export class UserService implements IUserService {
         .returning();
 
       if (!result.length) {
-        throw new DatabaseError('Failed to create user');
+        throw new DatabaseError(userResponse.errors.creationFailed);
       }
 
-      return _ok(result[0], 'User created successfully', StatusCodes.CREATED);
+      return _ok(result[0], userResponse.success.created, StatusCodes.CREATED);
     } catch (error) {
-      throw handleServiceError(error, 'User creation failed');
+      throw handleServiceError(error, userResponse.errors.creationFailed);
     }
   }
 
@@ -94,17 +96,30 @@ export class UserService implements IUserService {
    * @param userId - The ID of the user to get
    * @returns A service response containing the user
    */
-  async getUserById(userId: number): Promise<ServiceResponse<User>> {
+  async getUserById(userId: string): Promise<ServiceResponse<Omit<User, 'password'>>> {
     try {
-      const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      const result = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          role: users.role,
+          isActive: users.isActive,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
 
       if (!result.length) {
-        throw new NotFoundError(`User with ID ${userId} not found`);
+        throw new NotFoundError(userResponse.errors.notFound);
       }
 
-      return _ok(result[0], 'User found');
+      return _ok(result[0], userResponse.success.found);
     } catch (error) {
-      throw handleServiceError(error, `Failed to get user with ID ${userId}`);
+      throw handleServiceError(error, userResponse.errors.notFound);
     }
   }
 
@@ -113,17 +128,30 @@ export class UserService implements IUserService {
    * @param email - The email of the user to get
    * @returns A service response containing the user
    */
-  async getUserByEmail(email: string): Promise<ServiceResponse<User>> {
+  async getUserByEmail(email: string): Promise<ServiceResponse<Omit<User, 'password'>>> {
     try {
-      const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      const result = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          role: users.role,
+          isActive: users.isActive,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        })
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
 
       if (!result.length) {
-        throw new NotFoundError(`User with email ${email} not found`);
+        throw new NotFoundError(userResponse.errors.notFound);
       }
 
-      return _ok(result[0], 'User found');
+      return _ok(result[0], userResponse.success.found);
     } catch (error) {
-      throw handleServiceError(error, `Failed to get user with email ${email}`);
+      throw handleServiceError(error, userResponse.errors.notFound);
     }
   }
 
@@ -132,33 +160,63 @@ export class UserService implements IUserService {
    * @param pagination - The pagination parameters
    * @returns A service response containing the users
    */
-  async getAllUsers(pagination: PaginationParams): Promise<ServiceResponse<IUserResponse>> {
+  async getAllUsers(
+    pagination: PaginationParams & { search?: string },
+  ): Promise<ServiceResponse<IUserResponse>> {
     try {
-      const { page = 1, limit = 10 } = pagination;
-      const offset = (page - 1) * limit;
+      const { offset, limit, page, search } = buildPaginationAndFilters(
+        pagination as Record<string, unknown>,
+      );
 
-      // Get total count
-      const countResult = await db.select({ count: users.id }).from(users);
-      const total = countResult.length;
+      // Build base query
+      const baseQuery = db
+        .select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          role: users.role,
+          isActive: users.isActive,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        })
+        .from(users);
 
-      // Get users with pagination
-      const { password: _password, ...rest } = getTableColumns(users);
-      const result = await db.select(rest).from(users).limit(limit).offset(offset);
+      // Add search filter if provided
+      let whereClause: SQL<unknown> | undefined;
+      if (search) {
+        whereClause = or(
+          sql`LOWER(${users.firstName}) LIKE LOWER(${'%' + search + '%'})`,
+          sql`LOWER(${users.lastName}) LIKE LOWER(${'%' + search + '%'})`,
+          sql`LOWER(${users.email}) LIKE LOWER(${'%' + search + '%'})`,
+        );
+      }
 
-      // Calculate pagination metadata
+      // Get total count with filters
+      const countQuery = db.select({ count: sql<number>`count(*)` }).from(users);
+      if (whereClause) countQuery.where(whereClause);
+      const countResult = await countQuery;
+      const total = Number(countResult[0]?.count || 0);
+
+      // Apply filters and pagination
+      if (whereClause) baseQuery.where(whereClause);
+      const result = await baseQuery.limit(limit).offset(offset);
+
+      // Calculate total pages
       const totalPages = Math.ceil(total / limit);
 
-      const paginatedResult: IUserResponse = {
-        users: result,
-        total,
-        page,
-        limit,
-        totalPages,
-      };
-
-      return _ok(paginatedResult, 'Users retrieved successfully');
+      return _ok(
+        {
+          users: result,
+          total,
+          page,
+          limit,
+          totalPages,
+        },
+        userResponse.success.retrieved,
+      );
     } catch (error) {
-      throw handleServiceError(error, 'Failed to retrieve users');
+      throw handleServiceError(error, userResponse.errors.listFailed);
     }
   }
 
@@ -169,9 +227,9 @@ export class UserService implements IUserService {
    * @returns A service response containing the user
    */
   async updateUser(
-    userId: number,
+    userId: string,
     userData: Partial<Omit<User, 'id' | 'email' | 'createdAt' | 'updatedAt'>>,
-  ): Promise<ServiceResponse<User>> {
+  ): Promise<ServiceResponse<Omit<User, 'password'>>> {
     try {
       // Check if user exists
       await this.findUserOrFail(userId);
@@ -179,7 +237,7 @@ export class UserService implements IUserService {
       // If password is being updated, hash it
       let dataToUpdate = { ...userData };
       if (userData.password) {
-        const hashedPassword = await this.hashPassword(userData.password);
+        const hashedPassword = await hashPassword(userData.password);
         dataToUpdate = { ...dataToUpdate, password: hashedPassword };
       }
 
@@ -188,15 +246,24 @@ export class UserService implements IUserService {
         .update(users)
         .set({ ...dataToUpdate, updatedAt: new Date() })
         .where(eq(users.id, userId))
-        .returning();
+        .returning({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          role: users.role,
+          isActive: users.isActive,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        });
 
       if (!result.length) {
-        throw new DatabaseError('Failed to update user');
+        throw new DatabaseError(userResponse.errors.updateFailed);
       }
 
-      return _ok(result[0], 'User updated successfully');
+      return _ok(result[0], userResponse.success.updated);
     } catch (error) {
-      throw handleServiceError(error, `Failed to update user with ID ${userId}`);
+      throw handleServiceError(error, userResponse.errors.updateFailed);
     }
   }
 
@@ -205,7 +272,7 @@ export class UserService implements IUserService {
    * @param userId - The ID of the user to delete
    * @returns A service response containing the result
    */
-  async deleteUser(userId: number): Promise<ServiceResponse<void>> {
+  async deleteUser(userId: string): Promise<ServiceResponse<void>> {
     try {
       // Check if user exists
       await this.findUserOrFail(userId);
@@ -214,12 +281,12 @@ export class UserService implements IUserService {
       const result = await db.delete(users).where(eq(users.id, userId));
 
       if (!result) {
-        throw new DatabaseError('Failed to delete user');
+        throw new DatabaseError(userResponse.errors.deleteFailed);
       }
 
-      return _ok(undefined, 'User deleted successfully', StatusCodes.NO_CONTENT);
+      return _ok(undefined, userResponse.success.deleted, StatusCodes.NO_CONTENT);
     } catch (error) {
-      throw handleServiceError(error, `Failed to delete user with ID ${userId}`);
+      throw handleServiceError(error, userResponse.errors.deleteFailed);
     }
   }
 
@@ -229,45 +296,33 @@ export class UserService implements IUserService {
    * @param password - The password of the user to verify
    * @returns A service response containing the user
    */
-  async verifyPassword(email: string, password: string): Promise<ServiceResponse<User>> {
+  async verifyPassword(
+    email: string,
+    password: string,
+  ): Promise<ServiceResponse<Omit<User, 'password'>>> {
     try {
-      // Get user by email
-      let user: User;
+      // Get user by email with password
+      const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
-      try {
-        const userResult = await this.getUserByEmail(email);
-        if (!userResult.success || !userResult.data) {
-          throw new UnauthorizedError('Invalid credentials');
-        }
-        user = userResult.data;
-      } catch (error) {
-        if (error instanceof NotFoundError) {
-          throw new UnauthorizedError('Invalid credentials');
-        }
-        throw error;
+      if (!result.length) {
+        throw new UnauthorizedError(userResponse.errors.invalidOldPassword);
       }
+
+      const user = result[0];
 
       // Verify password
       const isPasswordValid = await bcrypt.compare(password, user.password);
 
       if (!isPasswordValid) {
-        throw new UnauthorizedError('Invalid credentials');
+        throw new UnauthorizedError(userResponse.errors.invalidOldPassword);
       }
 
-      return _ok(user, 'Password verified successfully');
+      // Return user without password
+      const { password: _, ...userWithoutPassword } = user;
+      return _ok(userWithoutPassword, userResponse.success.passwordUpdated);
     } catch (error) {
-      throw handleServiceError(error, 'Password verification failed');
+      throw handleServiceError(error, userResponse.errors.passwordUpdateFailed);
     }
-  }
-
-  /**
-   * Helper method to hash a password
-   * @param password - The password to hash
-   * @returns The hashed password
-   */
-  private async hashPassword(password: string): Promise<string> {
-    const saltRounds = parseInt(env.BCRYPT_SALT_ROUNDS.toString(), 10);
-    return bcrypt.hash(password, saltRounds);
   }
 
   /**
@@ -275,11 +330,24 @@ export class UserService implements IUserService {
    * @param userId - The ID of the user to find
    * @returns The user
    */
-  private async findUserOrFail(userId: number): Promise<User> {
-    const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  private async findUserOrFail(userId: string): Promise<Omit<User, 'password'>> {
+    const result = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        role: users.role,
+        isActive: users.isActive,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
 
     if (!result.length) {
-      throw new NotFoundError(`User with ID ${userId} not found`);
+      throw new NotFoundError(userResponse.errors.notFound);
     }
 
     return result[0];

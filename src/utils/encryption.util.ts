@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import env from '../config/env.config';
 
 import { logger } from './logger';
+import bcrypt from 'bcrypt';
 
 // Encryption algorithm
 const ALGORITHM = 'aes-256-gcm';
@@ -107,4 +108,14 @@ export const isEncrypted = (data: any): boolean => {
   }
 
   return 'encrypted' in data && typeof data.encrypted === 'string';
+};
+
+/**
+ * Helper method to hash a password
+ * @param password - The password to hash
+ * @returns The hashed password
+ */
+export const hashPassword = (password: string): Promise<string> => {
+  const saltRounds = parseInt(env.BCRYPT_SALT_ROUNDS.toString(), 10);
+  return bcrypt.hash(password, saltRounds);
 };

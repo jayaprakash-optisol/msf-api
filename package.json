@@ -22,7 +22,6 @@
     "db:drop": "drizzle-kit drop --config=./drizzle.config.ts"
   },
   "dependencies": {
-    "@types/ioredis": "^5.0.0",
     "bcrypt": "^6.0.0",
     "compression": "^1.8.0",
     "cors": "^2.8.5",
@@ -46,6 +45,7 @@
     "@types/compression": "^1.7.5",
     "@types/cors": "^2.8.18",
     "@types/express": "^5.0.2",
+    "@types/ioredis": "^4.28.10",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.15.19",
