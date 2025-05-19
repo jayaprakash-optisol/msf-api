@@ -32,6 +32,19 @@ services:
       timeout: 5s
       retries: 5
 
+  bull-board:
+    image: felixmosh/bull-board:latest
+    container_name: bull-board
+    ports:
+      - '3000:3000'
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - BULL_PREFIX=msf # adjust this to match your queue prefix if needed
+      - BASE_PATH=/
+    depends_on:
+      - redis
+
   sonar-postgres:
     image: postgres:13-alpine
     container_name: sonar-postgres
