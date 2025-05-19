@@ -1,0 +1,39 @@
+components:
+  schemas:
+    UserBasic:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: User ID
+        email:
+          type: string
+          format: email
+          description: User email
+        firstName:
+          type: string
+          description: User first name
+        lastName:
+          type: string
+          description: User last name
+        role:
+          type: string
+          enum: [admin, user]
+          description: User role
+
+    UserFull:
+      allOf:
+        - $ref: '#/components/schemas/UserBasic'
+        - type: object
+          properties:
+            isActive:
+              type: boolean
+              description: User account status
+            createdAt:
+              type: string
+              format: date-time
+              description: User creation timestamp
+            updatedAt:
+              type: string
+              format: date-time
+              description: User last update timestamp
