@@ -43,6 +43,8 @@ export async function configureApp(): Promise<void> {
   // Initialize Redis client
   initRedisClient();
 
+  // BullMQ will connect to Redis lazily when needed
+
   // Security middleware
   app.use(helmet());
 

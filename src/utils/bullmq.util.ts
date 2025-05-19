@@ -1,7 +1,23 @@
 import { Queue, Worker, FlowProducer, Job } from 'bullmq';
 import type { QueueOptions, WorkerOptions } from 'bullmq';
+import winston from 'winston';
 import env from '../config/env.config';
-import { logger } from './logger';
+
+// Create a dedicated logger for BullMQ to avoid circular dependencies
+const bullMQLogger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.printf(({ level, message, timestamp }) => {
+      return `${timestamp} ${level}: BullMQ - ${message}`;
+    }),
+  ),
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+    }),
+  ],
+});
 
 // Track all created instances for graceful shutdown
 const queues: Queue[] = [];
@@ -35,7 +51,7 @@ export const createQueue = (name: string, options: Partial<QueueOptions> = {}): 
   });
 
   queues.push(queue);
-  logger.info(`Queue created: ${name}`);
+  bullMQLogger.info(`Queue created: ${name}`);
   return queue;
 };
 
@@ -58,15 +74,15 @@ export const createWorker = <T, R>(
   });
 
   worker.on('error', (err: Error) => {
-    logger.error(`Worker ${name} error:`, err);
+    bullMQLogger.error(`Worker ${name} error:`, err);
   });
 
   worker.on('failed', (job: Job | undefined, err: Error) => {
-    logger.error(`Job ${job?.id} in queue ${name} failed:`, err);
+    bullMQLogger.error(`Job ${job?.id} in queue ${name} failed:`, err);
   });
 
   workers.push(worker);
-  logger.info(`Worker created for queue: ${name}`);
+  bullMQLogger.info(`Worker created for queue: ${name}`);
   return worker;
 };
 
@@ -85,7 +101,7 @@ export const createFlowProducer = (
   });
 
   flowProducers.push(flowProducer);
-  logger.info('FlowProducer created');
+  bullMQLogger.info('FlowProducer created');
   return flowProducer;
 };
 
@@ -93,16 +109,16 @@ export const createFlowProducer = (
  * Close all BullMQ connections gracefully
  */
 export const closeBullMQConnections = async (): Promise<void> => {
-  logger.info('Closing BullMQ connections...');
+  bullMQLogger.info('Closing BullMQ connections...');
 
   // Close all workers first
   await Promise.all(
     workers.map(async (worker, index) => {
       try {
         await worker.close();
-        logger.debug(`Worker ${index + 1} closed successfully`);
+        bullMQLogger.debug(`Worker ${index + 1} closed successfully`);
       } catch (error) {
-        logger.error(`Error closing worker ${index + 1}:`, error);
+        bullMQLogger.error(`Error closing worker ${index + 1}:`, error);
       }
     }),
   );
@@ -112,9 +128,9 @@ export const closeBullMQConnections = async (): Promise<void> => {
     flowProducers.map(async (producer, index) => {
       try {
         await producer.close();
-        logger.debug(`FlowProducer ${index + 1} closed successfully`);
+        bullMQLogger.debug(`FlowProducer ${index + 1} closed successfully`);
       } catch (error) {
-        logger.error(`Error closing FlowProducer ${index + 1}:`, error);
+        bullMQLogger.error(`Error closing FlowProducer ${index + 1}:`, error);
       }
     }),
   );
@@ -124,16 +140,36 @@ export const closeBullMQConnections = async (): Promise<void> => {
     queues.map(async (queue, index) => {
       try {
         await queue.close();
-        logger.debug(`Queue ${index + 1} closed successfully`);
+        bullMQLogger.debug(`Queue ${index + 1} closed successfully`);
       } catch (error) {
-        logger.error(`Error closing Queue ${index + 1}:`, error);
+        bullMQLogger.error(`Error closing Queue ${index + 1}:`, error);
       }
     }),
   );
 
-  logger.info('All BullMQ connections closed');
+  bullMQLogger.info('All BullMQ connections closed');
 };
 
-// Export a singleton instance of commonly used components
-export const defaultQueue = createQueue('default');
-export const defaultFlowProducer = createFlowProducer();
+// Don't initialize the default instances eagerly to avoid initialization issues
+let _defaultQueue: Queue | null = null;
+let _defaultFlowProducer: FlowProducer | null = null;
+
+/**
+ * Get the default queue, initializing it if it doesn't exist
+ */
+export const getDefaultQueue = (): Queue => {
+  if (!_defaultQueue) {
+    _defaultQueue = createQueue('default');
+  }
+  return _defaultQueue;
+};
+
+/**
+ * Get the default flow producer, initializing it if it doesn't exist
+ */
+export const getDefaultFlowProducer = (): FlowProducer => {
+  if (!_defaultFlowProducer) {
+    _defaultFlowProducer = createFlowProducer();
+  }
+  return _defaultFlowProducer;
+};
