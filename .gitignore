@@ -9,6 +9,8 @@ yarn.lock
 .sonar/
 .scannerwork/
 
+src/database/scripts/seed.ts
+
 # Compiled output
 dist/
 build/

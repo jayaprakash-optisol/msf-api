@@ -34,7 +34,7 @@ describe('Auth Middleware', () => {
       vi.mocked(jwtUtil.verifyToken).mockReturnValue({
         success: true,
         data: {
-          userId: 1,
+          userId: '1',
           email: 'test@example.com',
           role: 'user',
         },
@@ -141,7 +141,7 @@ describe('Auth Middleware', () => {
       vi.mocked(jwtUtil.verifyToken).mockReturnValue({
         success: true,
         data: {
-          userId: 1,
+          userId: '1',
           email: 'test@example.com',
           role: 'admin',
         },

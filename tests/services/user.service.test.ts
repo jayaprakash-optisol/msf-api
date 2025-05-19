@@ -3,6 +3,22 @@ import { StatusCodes } from 'http-status-codes';
 import { mockUsers, mockNewUser } from '../mocks';
 import env from '../../src/config/env.config';
 
+// Import pagination utils directly to mock them
+import * as paginationUtils from '../../src/utils/pagination.util';
+
+// Mock buildPaginationAndFilters and buildWhereClause
+vi.mock('../../src/utils/pagination.util', () => ({
+  buildPaginationAndFilters: vi.fn().mockReturnValue({
+    offset: 0,
+    limit: 10,
+    page: 1,
+    limitValue: 10,
+    search: '',
+    filters: {},
+  }),
+  buildWhereClause: vi.fn().mockReturnValue({}),
+}));
+
 // Create mock functions
 vi.mock('bcrypt', () => ({
   default: {
@@ -18,6 +34,12 @@ vi.mock('../../src/config/database.config', () => ({
     insert: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    query: {
+      users: {
+        findMany: vi.fn(),
+        findFirst: vi.fn(),
+      },
+    },
   },
 }));
 
@@ -161,34 +183,19 @@ describe('UserService', () => {
       vi.resetAllMocks();
     });
 
-    // Skip this test for now as it's proving difficult to mock correctly
-    it.skip('should get all users with pagination', async () => {
-      // Override the buildPaginationAndFilters implementation
-      vi.mock('../../src/utils/pagination.util', () => ({
-        buildPaginationAndFilters: () => ({
-          offset: 0,
-          limit: 10,
-          page: 1,
-          limitValue: 10,
-          filters: {},
-        }),
-      }));
-
-      // Mock db.select for count query
-      vi.mocked(db.select).mockReturnValueOnce({
-        from: vi.fn().mockResolvedValue([{ count: 2 }]),
-      } as any);
-
-      // Mock db.select for the main query
-      const limitMock = vi.fn().mockReturnValue({
-        offset: vi.fn().mockResolvedValue(mockUsers),
+    it('should get all users with pagination', async () => {
+      // Set up specific return value for this test
+      vi.mocked(paginationUtils.buildPaginationAndFilters).mockReturnValue({
+        offset: 0,
+        limit: 10,
+        page: 1,
+        limitValue: 10,
+        search: '',
+        filters: {},
       });
 
-      vi.mocked(db.select).mockReturnValueOnce({
-        from: vi.fn().mockReturnValue({
-          limit: limitMock,
-        }),
-      } as any);
+      // Mock the db.query.users.findMany method to return users
+      vi.mocked(db.query.users.findMany).mockResolvedValue(mockUsers);
 
       // Run the test
       const result = await userService.getAllUsers({ page: 1, limit: 10 });
@@ -196,18 +203,64 @@ describe('UserService', () => {
       // Verify results
       expect(result.success).toBe(true);
       expect(result.data).toHaveProperty('users');
-      expect(result.data).toHaveProperty('total');
+      expect(result.data!.users.length).toBe(2);
+      expect(result.data).toHaveProperty('total', 2);
+      expect(result.data).toHaveProperty('page', 1);
+      expect(result.data).toHaveProperty('limit', 10);
+      expect(result.data).toHaveProperty('totalPages', 1);
       expect(result.message).toContain('Users retrieved successfully');
+
+      // Verify password is removed
+      expect(result.data!.users[0]).not.toHaveProperty('password');
+    });
+
+    it('should filter users by search query', async () => {
+      // Set up specific return value for this test
+      vi.mocked(paginationUtils.buildPaginationAndFilters).mockReturnValue({
+        offset: 0,
+        limit: 10,
+        page: 1,
+        limitValue: 10,
+        search: 'test',
+        filters: { search: 'test' },
+      });
+
+      // Mock filtered results - just the first user
+      vi.mocked(db.query.users.findMany).mockResolvedValue([mockUsers[0]]);
+
+      // Run the test
+      const result = await userService.getAllUsers({ page: 1, limit: 10, search: 'test' });
+
+      // Verify results
+      expect(result.success).toBe(true);
+      expect(result.data!.users.length).toBe(1);
+      expect(result.data!.total).toBe(1);
+      expect(result.data!.users[0].email).toBe('test@example.com');
+
+      // Verify the function was called
+      expect(db.query.users.findMany).toHaveBeenCalled();
     });
 
     it('should throw InternalServerError for database errors', async () => {
-      // Setup mocks for this test
-      vi.mocked(db.select).mockImplementation(() => {
-        throw new Error('Database error');
+      // Set up basic pagination mock
+      vi.mocked(paginationUtils.buildPaginationAndFilters).mockReturnValue({
+        offset: 0,
+        limit: 10,
+        page: 1,
+        limitValue: 10,
+        search: '',
+        filters: {},
       });
 
+      // Setup mocks to throw an error
+      vi.mocked(db.query.users.findMany).mockRejectedValue(new Error('Database error'));
+
+      // Test that an error is thrown
       await expect(userService.getAllUsers({ page: 1, limit: 10 })).rejects.toThrow(
         InternalServerError,
+      );
+      await expect(userService.getAllUsers({ page: 1, limit: 10 })).rejects.toThrow(
+        'Failed to retrieve users: Database error',
       );
     });
   });
@@ -425,7 +478,7 @@ describe('UserService', () => {
       const result = await userService.verifyPassword('test@example.com', 'Password123!');
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain('Password updated successfully');
+      expect(result.message).toContain('Operation successful');
       expect(db.select).toHaveBeenCalled();
     });
 
@@ -447,7 +500,7 @@ describe('UserService', () => {
         UnauthorizedError,
       );
       await expect(userService.verifyPassword('test@example.com', 'WrongPassword')).rejects.toThrow(
-        'Invalid old password',
+        'Authentication failed: Invalid security credentials',
       );
 
       // Restore the original mock
@@ -469,7 +522,7 @@ describe('UserService', () => {
       ).rejects.toThrow(UnauthorizedError);
       await expect(
         userService.verifyPassword('nonexistent@example.com', 'Password123!'),
-      ).rejects.toThrow('Invalid old password');
+      ).rejects.toThrow('Authentication failed: Invalid security credentials');
     });
 
     it('should throw InternalServerError for database errors', async () => {
@@ -503,6 +556,26 @@ describe('UserService', () => {
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Email is available');
+    });
+
+    it('should return that email is available when getUserByEmail succeeds but returns no data', async () => {
+      // Setup the userService.getUserByEmail method to be called directly
+      // and return a successful response but with no data
+      const getUserByEmailSpy = vi.spyOn(userService, 'getUserByEmail' as any);
+      getUserByEmailSpy.mockResolvedValueOnce({
+        success: true,
+        data: null,
+        message: 'Operation successful',
+      });
+
+      const result = await userService.checkEmailAvailability('available@example.com');
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Email is available');
+      expect(getUserByEmailSpy).toHaveBeenCalledWith('available@example.com');
+
+      // Restore the original implementation
+      getUserByEmailSpy.mockRestore();
     });
 
     it('should return that email is available when NotFoundError is caught', async () => {

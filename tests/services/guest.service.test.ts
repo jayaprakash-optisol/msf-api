@@ -31,7 +31,6 @@ import { GuestService } from '../../src/services/guest.service';
 import bcrypt from 'bcrypt';
 import { db } from '../../src/config/database.config';
 import { DatabaseError, NotFoundError, InternalServerError } from '../../src/utils/error.util';
-import { eq } from 'drizzle-orm';
 
 describe('GuestService', () => {
   let guestService: GuestService;

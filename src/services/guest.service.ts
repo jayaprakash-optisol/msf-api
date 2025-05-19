@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { StatusCodes } from 'http-status-codes';
 import { db } from '../config/database.config';
 import { guests } from '../models';
+import crypto from 'crypto';
 import {
   type Guest,
   type NewGuest,
@@ -36,7 +37,8 @@ export class GuestService implements IGuestService {
    * @returns A random username for the guest
    */
   private _generateRandomUsername(firstName: string, lastName: string): string {
-    const rand = Math.floor(1000 + Math.random() * 9000);
+    // Generate a cryptographically secure random number between 1000-9999
+    const rand = 1000 + (crypto.randomBytes(2).readUInt16BE(0) % 9000);
     return (
       firstName.toLowerCase().replace(/[^a-z0-9]/g, '') +
       '.' +
@@ -58,8 +60,8 @@ export class GuestService implements IGuestService {
     // Get first 2 characters from last name (or pad with 'y' if too short)
     const lastNameChars = (lastName.substring(0, 2) + 'yy').substring(0, 2);
 
-    // Add 4 random digits
-    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    // Add 4 cryptographically secure random digits
+    const randomDigits = 1000 + (crypto.randomBytes(2).readUInt16BE(0) % 9000);
 
     // Combine and ensure at least one uppercase letter
     return (

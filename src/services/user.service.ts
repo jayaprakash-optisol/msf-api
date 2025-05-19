@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import { eq, or, sql, SQL } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { StatusCodes } from 'http-status-codes';
 
 import { db } from '../config/database.config';
@@ -20,6 +20,7 @@ import {
   _ok,
   handleServiceError,
   userResponse,
+  buildWhereClause,
 } from '../utils';
 import { hashPassword } from '../utils/encryption.util';
 import { buildPaginationAndFilters } from '../utils/pagination.util';
@@ -98,26 +99,8 @@ export class UserService implements IUserService {
    */
   async getUserById(userId: string): Promise<ServiceResponse<Omit<User, 'password'>>> {
     try {
-      const result = await db
-        .select({
-          id: users.id,
-          email: users.email,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          role: users.role,
-          isActive: users.isActive,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt,
-        })
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
-
-      if (!result.length) {
-        throw new NotFoundError(userResponse.errors.notFound);
-      }
-
-      return _ok(result[0], userResponse.success.found);
+      const result = await this.findUserOrFail(userId);
+      return _ok(result, userResponse.success.found);
     } catch (error) {
       throw handleServiceError(error, userResponse.errors.notFound);
     }
@@ -168,39 +151,23 @@ export class UserService implements IUserService {
         pagination as Record<string, unknown>,
       );
 
-      // Build base query
-      const baseQuery = db
-        .select({
-          id: users.id,
-          email: users.email,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          role: users.role,
-          isActive: users.isActive,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt,
-        })
-        .from(users);
+      // Build base query with where clause
+      const whereClause = buildWhereClause(
+        { search },
+        { search: [users.firstName, users.lastName, users.email] },
+      );
 
-      // Add search filter if provided
-      let whereClause: SQL<unknown> | undefined;
-      if (search) {
-        whereClause = or(
-          sql`LOWER(${users.firstName}) LIKE LOWER(${'%' + search + '%'})`,
-          sql`LOWER(${users.lastName}) LIKE LOWER(${'%' + search + '%'})`,
-          sql`LOWER(${users.email}) LIKE LOWER(${'%' + search + '%'})`,
-        );
-      }
+      // Get total count
+      const allUsers = await db.query.users.findMany({ where: whereClause });
+      const total = allUsers.length;
 
-      // Get total count with filters
-      const countQuery = db.select({ count: sql<number>`count(*)` }).from(users);
-      if (whereClause) countQuery.where(whereClause);
-      const countResult = await countQuery;
-      const total = Number(countResult[0]?.count || 0);
+      const usersWithoutPasswords = allUsers.map(user => {
+        const { password: _, ...userWithoutPassword } = user;
+        return userWithoutPassword;
+      });
 
-      // Apply filters and pagination
-      if (whereClause) baseQuery.where(whereClause);
-      const result = await baseQuery.limit(limit).offset(offset);
+      // Get users with pagination
+      const result = usersWithoutPasswords.slice(offset, offset + limit);
 
       // Calculate total pages
       const totalPages = Math.ceil(total / limit);
@@ -319,9 +286,9 @@ export class UserService implements IUserService {
 
       // Return user without password
       const { password: _, ...userWithoutPassword } = user;
-      return _ok(userWithoutPassword, userResponse.success.passwordUpdated);
+      return _ok(userWithoutPassword);
     } catch (error) {
-      throw handleServiceError(error, userResponse.errors.passwordUpdateFailed);
+      throw handleServiceError(error);
     }
   }
 

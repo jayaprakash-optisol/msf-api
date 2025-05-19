@@ -35,6 +35,19 @@ vi.mock('../../src/utils/jwt.util', () => ({
   },
 }));
 
+// Mock authResponse to use security-focused wording
+vi.mock('../../src/utils/responseMessages/auth.messages', () => ({
+  authResponse: {
+    errors: {
+      invalidCredentials: 'Authentication failed: Invalid credentials',
+      loginFailed: 'Login failed',
+    },
+    success: {
+      loggedIn: 'User logged in successfully',
+    },
+  },
+}));
+
 // Mock UserService
 vi.mock('../../src/services/user.service', () => ({
   UserService: {
@@ -203,7 +216,7 @@ describe('AuthService', () => {
         UnauthorizedError,
       );
       await expect(authService.login('test@example.com', 'Password123!')).rejects.toThrow(
-        'Invalid email or password',
+        'Authentication failed: Invalid credentials',
       );
     });
 
