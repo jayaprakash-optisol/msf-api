@@ -14,15 +14,15 @@ interface RateLimitOptions {
 const getDefaultOptions = (): RateLimitOptions => {
   if (env.NODE_ENV === 'development') {
     return {
-      windowMs: parseInt(env.TEST_RATE_LIMIT_WINDOW_MS || '1000', 10), // 1 second for testing
-      max: parseInt(env.TEST_RATE_LIMIT_MAX || '3', 10), // 3 requests per window for testing
+      windowMs: parseInt(env.TEST_RATE_LIMIT_WINDOW_MS, 10), // 1 second for testing
+      max: parseInt(env.TEST_RATE_LIMIT_MAX, 10), // 3 requests per window for testing
       keyPrefix: 'test-rate-limit',
     };
   }
 
   return {
-    windowMs: parseInt(env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes default
-    max: parseInt(env.RATE_LIMIT_MAX || '100', 10), // 100 requests per window default
+    windowMs: parseInt(env.RATE_LIMIT_WINDOW_MS, 10), // 15 minutes default
+    max: parseInt(env.RATE_LIMIT_MAX, 10), // 100 requests per window default
     keyPrefix: 'rate-limit',
   };
 };
