@@ -7,6 +7,7 @@ export const guestResponse = {
     credentialsFailed: 'Failed to get guest credentials',
     listFailed: 'Failed to retrieve guests',
     credentialsAlreadyViewed: 'Credentials already viewed',
+    credentialsConfirmationFailed: 'Failed to confirm credentials',
   },
   success: {
     created: 'Guest created successfully',
@@ -16,5 +17,6 @@ export const guestResponse = {
     credentialsViewed: 'Credentials can only be viewed once',
     retrieved: 'Guests retrieved successfully',
     credentialsViewMessage: 'Copy these credentials now. They will not be shown again.',
+    credentialsConfirmed: 'Credentials confirmed successfully',
   },
 };

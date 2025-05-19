@@ -131,6 +131,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/GuestCredentialsResponse'
 
+  /guests/{id}/confirm-credentials:
+    post:
+      summary: Confirm guest credentials
+      description: Confirms that the guest has received and acknowledged their credentials
+      tags: [Guests]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmCredentialsRequest'
+      responses:
+        '200':
+          description: Credentials confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfirmCredentialsResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -235,3 +271,28 @@ components:
     GuestStatusEnum:
       type: string
       enum: ['Active', 'Inactive', 'Expired']
+    ConfirmCredentialsRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          description: Guest username to confirm
+          example: 'john.doe1234'
+        password:
+          type: string
+          description: Guest password to confirm
+          example: 'JoDo5678'
+    ConfirmCredentialsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: 'Credentials confirmed successfully'
+        data:
+          type: null
+          example: null
+          description: 'This endpoint returns no data'

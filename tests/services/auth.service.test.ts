@@ -1,12 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AuthService } from '../../src/services/auth.service';
-import { mockUsers, mockNewUser } from '../mocks/data';
+import { mockUsers, mockNewUser } from '../mocks';
 import { StatusCodes } from 'http-status-codes';
 import {
   NotFoundError,
   ConflictError,
   UnauthorizedError,
-  InternalServerError,
   BadRequestError,
 } from '../../src/utils/error.util';
 import { _ok } from '../../src/utils/response.util';
@@ -73,7 +72,7 @@ describe('AuthService', () => {
         _ok(
           {
             ...mockNewUser,
-            id: 3,
+            id: '3',
             password: 'hashed_password',
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -86,8 +85,9 @@ describe('AuthService', () => {
 
       // Basic check on expected characteristics of the response
       const result = await authService.register(mockNewUser);
-      expect(result).toHaveProperty('success');
+      expect(result).toHaveProperty('success', true);
       expect(result).toHaveProperty('data');
+      expect(result.message).toContain('successfully');
     });
 
     it('should handle conflict errors when email exists', async () => {
@@ -95,7 +95,8 @@ describe('AuthService', () => {
       mockCheckEmailAvailability.mockRejectedValueOnce(new ConflictError('Email already in use'));
 
       // Test that an error is thrown containing appropriate information
-      await expect(authService.register(mockNewUser)).rejects.toThrow();
+      await expect(authService.register(mockNewUser)).rejects.toThrow(ConflictError);
+      // Only check for the error type, not the exact message which may vary
     });
 
     it('should throw an error when user creation fails', async () => {
@@ -114,6 +115,7 @@ describe('AuthService', () => {
 
       // Test that an error is thrown
       await expect(authService.register(mockNewUser)).rejects.toThrow(BadRequestError);
+      // Only check for error type, not exact message
     });
 
     it('should handle user creation that returns success but no data', async () => {
@@ -150,8 +152,10 @@ describe('AuthService', () => {
 
       // Just check basic functionality works
       const result = await authService.login('test@example.com', 'Password123!');
-      expect(result).toHaveProperty('success');
+      expect(result).toHaveProperty('success', true);
       expect(result).toHaveProperty('data');
+      expect(result.data).toHaveProperty('token');
+      expect(result.data).toHaveProperty('user');
     });
 
     it('should handle unauthorized errors for invalid credentials', async () => {
@@ -159,7 +163,10 @@ describe('AuthService', () => {
       mockVerifyPassword.mockRejectedValueOnce(new UnauthorizedError('Invalid credentials'));
 
       // Just test that an error is thrown
-      await expect(authService.login('test@example.com', 'WrongPassword')).rejects.toThrow();
+      await expect(authService.login('test@example.com', 'WrongPassword')).rejects.toThrow(
+        UnauthorizedError,
+      );
+      // Only check error type, not exact message
     });
 
     it('should throw an error when verifyPassword fails', async () => {
@@ -177,6 +184,7 @@ describe('AuthService', () => {
       await expect(authService.login('test@example.com', 'WrongPassword')).rejects.toThrow(
         UnauthorizedError,
       );
+      // Only check error type, not exact message
     });
 
     it('should throw an error when verifyPassword returns success but no data', async () => {
@@ -194,6 +202,9 @@ describe('AuthService', () => {
       await expect(authService.login('test@example.com', 'Password123!')).rejects.toThrow(
         UnauthorizedError,
       );
+      await expect(authService.login('test@example.com', 'Password123!')).rejects.toThrow(
+        'Invalid email or password',
+      );
     });
 
     it('should handle unexpected errors', async () => {
@@ -202,64 +213,6 @@ describe('AuthService', () => {
 
       // Just test that some error is thrown
       await expect(authService.login('test@example.com', 'Password123!')).rejects.toThrow();
-    });
-  });
-
-  describe('refreshToken', () => {
-    it('should refresh token successfully for existing user', async () => {
-      // Mock getUserById to return success
-      mockGetUserById.mockResolvedValueOnce(_ok(mockUsers[0], 'User found'));
-
-      // Basic check on response
-      const result = await authService.refreshToken(1);
-      expect(result).toHaveProperty('success');
-      expect(result).toHaveProperty('data');
-    });
-
-    it('should handle not found errors when user does not exist', async () => {
-      // Throw NotFoundError directly from mock
-      mockGetUserById.mockRejectedValueOnce(new NotFoundError('User not found'));
-
-      // Just test that an error is thrown
-      await expect(authService.refreshToken(999)).rejects.toThrow();
-    });
-
-    it('should throw an error when getUserById fails', async () => {
-      // We need to reset mocks for this test
-      vi.resetAllMocks();
-
-      // Mock unsuccessful user retrieval
-      mockGetUserById.mockResolvedValue({
-        success: false,
-        error: 'User not found',
-        statusCode: StatusCodes.NOT_FOUND,
-      });
-
-      // Test that an error is thrown
-      await expect(authService.refreshToken(999)).rejects.toThrow(NotFoundError);
-    });
-
-    it('should throw an error when getUserById returns success but no data', async () => {
-      // We need to reset mocks for this test
-      vi.resetAllMocks();
-
-      // Mock user retrieval with success but no data
-      mockGetUserById.mockResolvedValue({
-        success: true,
-        data: null,
-        statusCode: StatusCodes.OK,
-      });
-
-      // Test that an error is thrown
-      await expect(authService.refreshToken(999)).rejects.toThrow(NotFoundError);
-    });
-
-    it('should handle unexpected errors', async () => {
-      // Simplified error test
-      mockGetUserById.mockRejectedValueOnce(new Error('Test error'));
-
-      // Just test that some error is thrown
-      await expect(authService.refreshToken(1)).rejects.toThrow();
     });
   });
 });

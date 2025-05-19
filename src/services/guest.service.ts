@@ -20,7 +20,6 @@ import {
   buildWhereClause,
   guestResponse,
 } from '../utils';
-import { logger } from '../utils/logger';
 
 export class GuestService implements IGuestService {
   private static instance: GuestService;
@@ -30,6 +29,12 @@ export class GuestService implements IGuestService {
     return GuestService.instance;
   }
 
+  /**
+   * Generate a random username for a guest
+   * @param firstName - The first name of the guest
+   * @param lastName - The last name of the guest
+   * @returns A random username for the guest
+   */
   private _generateRandomUsername(firstName: string, lastName: string): string {
     const rand = Math.floor(1000 + Math.random() * 9000);
     return (
@@ -40,6 +45,12 @@ export class GuestService implements IGuestService {
     );
   }
 
+  /**
+   * Generate a random password for a guest
+   * @param firstName - The first name of the guest
+   * @param lastName - The last name of the guest
+   * @returns A random password for the guest
+   */
   private _generateRandomPassword(firstName: string, lastName: string): string {
     // Get first 2 characters from first name (or pad with 'x' if too short)
     const firstNameChars = (firstName.substring(0, 2) + 'xx').substring(0, 2);
@@ -59,6 +70,26 @@ export class GuestService implements IGuestService {
     );
   }
 
+  /**
+   * Ensure a guest exists
+   * @param guestId - The id of the guest
+   * @returns A service response containing the guest
+   */
+  async _ensureGuestExists(guestId: string): Promise<Guest> {
+    try {
+      const guest = await db.query.guests.findFirst({ where: eq(guests.id, guestId) });
+      if (!guest) throw new NotFoundError(guestResponse.errors.notFound);
+      return guest;
+    } catch (error) {
+      throw handleServiceError(error, guestResponse.errors.notFound);
+    }
+  }
+
+  /**
+   * Create a new guest
+   * @param guestData - The data of the guest to create
+   * @returns A service response containing the guest and the generated credentials
+   */
   async createGuest(
     guestData: Omit<NewGuest, 'id' | 'createdAt' | 'updatedAt' | 'credentialsViewed'> & {
       generateCredentials: boolean;
@@ -92,12 +123,44 @@ export class GuestService implements IGuestService {
     }
   }
 
+  /**
+   * Confirm guest credentials
+   * @param guestId - The id of the guest
+   * @param credentials - The credentials of the guest
+   * @returns A Confirmation message
+   */
+  async confirmGuestCredentials(
+    guestId: string,
+    credentials: { username: string; password: string },
+  ): Promise<ServiceResponse<void>> {
+    try {
+      await this._ensureGuestExists(guestId);
+      const { password, username } = credentials;
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const result = await db
+        .update(guests)
+        .set({ password: hashedPassword, username, updatedAt: new Date() })
+        .where(eq(guests.id, guestId))
+        .returning();
+      if (!result.length) throw new NotFoundError(guestResponse.errors.notFound);
+      return _ok(undefined, guestResponse.success.credentialsConfirmed);
+    } catch (error) {
+      throw handleServiceError(error, guestResponse.errors.credentialsConfirmationFailed);
+    }
+  }
+
+  /**
+   * Get guest credentials
+   * @param guestId - The id of the guest
+   * @returns A service response containing the guest credentials
+   */
   async getGuestCredentials(
     guestId: string,
   ): Promise<ServiceResponse<{ username: string; password: string }>> {
     try {
-      const guest = await db.query.guests.findFirst({ where: eq(guests.id, guestId) });
-      if (!guest) throw new NotFoundError(guestResponse.errors.notFound);
+      const guest = await this._ensureGuestExists(guestId);
       if (guest.credentialsViewed)
         throw new NotFoundError(guestResponse.errors.credentialsAlreadyViewed);
       await db.update(guests).set({ credentialsViewed: true }).where(eq(guests.id, guestId));
@@ -110,6 +173,11 @@ export class GuestService implements IGuestService {
     }
   }
 
+  /**
+   * Get all guests
+   * @param params - The pagination and filter parameters
+   * @returns A service response containing the guests
+   */
   async getAllGuests(
     params: PaginationParams & { status?: string; search?: string },
   ): Promise<ServiceResponse<GuestListResponse>> {
@@ -142,10 +210,14 @@ export class GuestService implements IGuestService {
     }
   }
 
+  /**
+   * Get a guest by id
+   * @param guestId - The id of the guest
+   * @returns A service response containing the guest
+   */
   async getGuestById(guestId: string): Promise<ServiceResponse<Omit<Guest, 'password'>>> {
     try {
-      const guest = await db.query.guests.findFirst({ where: eq(guests.id, guestId) });
-      if (!guest) throw new NotFoundError(guestResponse.errors.notFound);
+      const guest = await this._ensureGuestExists(guestId);
       const { password: _, ...guestWithoutPassword } = guest;
       return _ok(guestWithoutPassword, guestResponse.success.found);
     } catch (error) {
@@ -153,6 +225,12 @@ export class GuestService implements IGuestService {
     }
   }
 
+  /**
+   * Update a guest
+   * @param guestId - The id of the guest
+   * @param guestData - The data of the guest to update
+   * @returns A service response containing the updated guest
+   */
   async updateGuest(
     guestId: string,
     guestData: Partial<
@@ -166,7 +244,6 @@ export class GuestService implements IGuestService {
         .where(eq(guests.id, guestId))
         .returning();
       if (!result.length) throw new NotFoundError(guestResponse.errors.notFound);
-      logger.info(`Guest updated: ${guestId}`);
       const { password: _, ...guestWithoutPassword } = result[0];
       return _ok(guestWithoutPassword, guestResponse.success.updated);
     } catch (error) {
@@ -174,11 +251,15 @@ export class GuestService implements IGuestService {
     }
   }
 
+  /**
+   * Delete a guest
+   * @param guestId - The id of the guest
+   * @returns A service response containing the deleted guest
+   */
   async deleteGuest(guestId: string): Promise<ServiceResponse<void>> {
     try {
       const result = await db.delete(guests).where(eq(guests.id, guestId)).returning();
       if (!result.length) throw new NotFoundError(guestResponse.errors.notFound);
-      logger.info(`Guest deleted: ${guestId}`);
       return _ok(undefined, guestResponse.success.deleted);
     } catch (error) {
       throw handleServiceError(error, guestResponse.errors.deleteFailed);

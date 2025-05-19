@@ -177,6 +177,10 @@ const swaggerDefinition = {
       name: 'Users',
       description: 'User management endpoints',
     },
+    {
+      name: 'Guests',
+      description: 'Guest account management endpoints',
+    },
   ],
 };
 

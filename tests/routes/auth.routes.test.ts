@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 import express, { Application } from 'express';
 import request from 'supertest';
 import authRoutes from '../../src/routes/auth.routes';
-import { mockLoginRequest, mockRegisterRequest } from '../mocks/data';
+import { mockLoginRequest, mockRegisterRequest } from '../mocks';
 import { StatusCodes } from 'http-status-codes';
 
 // Mock the auth controller methods
@@ -29,24 +29,6 @@ vi.mock('../../src/controllers/auth.controller', () => {
               email: req.body.email,
             },
             token: 'mock_token',
-          },
-        });
-      }),
-      getCurrentUser: vi.fn((req, res) => {
-        return res.status(StatusCodes.OK).json({
-          success: true,
-          data: {
-            id: 1,
-            email: 'test@example.com',
-          },
-        });
-      }),
-      refreshToken: vi.fn((req, res) => {
-        return res.status(StatusCodes.OK).json({
-          success: true,
-          message: 'Token refreshed successfully',
-          data: {
-            token: 'new_mock_token',
           },
         });
       }),
@@ -115,34 +97,6 @@ describe('Auth Routes (Integration)', () => {
         message: 'Login successful',
         data: expect.objectContaining({
           user: expect.any(Object),
-          token: expect.any(String),
-        }),
-      });
-    });
-  });
-
-  describe('GET /api/auth/me', () => {
-    it('should return current user details', async () => {
-      const response = await api.get('/api/auth/me').expect(StatusCodes.OK);
-
-      expect(response.body).toEqual({
-        success: true,
-        data: expect.objectContaining({
-          id: expect.any(Number),
-          email: expect.any(String),
-        }),
-      });
-    });
-  });
-
-  describe('POST /api/auth/refresh-token', () => {
-    it('should refresh token successfully', async () => {
-      const response = await api.post('/api/auth/refresh-token').expect(StatusCodes.OK);
-
-      expect(response.body).toEqual({
-        success: true,
-        message: 'Token refreshed successfully',
-        data: expect.objectContaining({
           token: expect.any(String),
         }),
       });

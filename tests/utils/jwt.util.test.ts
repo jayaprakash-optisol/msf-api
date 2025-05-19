@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { jwtUtil } from '../../src/utils/jwt.util';
-import { mockJwtPayload } from '../mocks/data';
+import { mockJwtPayload } from '../mocks';
 import jwt from 'jsonwebtoken';
 import { StatusCodes } from 'http-status-codes';
 
@@ -114,7 +114,7 @@ describe('JWT Utilities', () => {
       expect(result.error).toBe('Token expired');
       expect(result.statusCode).toBe(StatusCodes.UNAUTHORIZED);
       expect(result.data).toEqual({
-        userId: 0,
+        userId: '',
         email: '',
         role: '',
       });

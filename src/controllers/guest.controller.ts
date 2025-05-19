@@ -22,6 +22,17 @@ export class GuestController {
   });
 
   /**
+   * Confirm guest credentials
+   */
+  confirmGuestCredentials = asyncHandler(async (req: Request, res: Response) => {
+    const guestId = req.params.id;
+    const result = await this.guestService.confirmGuestCredentials(guestId, req.body);
+    if (!result.success)
+      throw new BadRequestError(result.error ?? guestResponse.errors.credentialsConfirmationFailed);
+    sendSuccess(res, result.data, guestResponse.success.credentialsConfirmed);
+  });
+
+  /**
    * Get guest credentials
    */
   getGuestCredentials = asyncHandler(async (req: Request, res: Response) => {

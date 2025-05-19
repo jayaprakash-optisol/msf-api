@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { authenticate, authorize } from '../../src/middleware/auth.middleware';
 import { createMockRequest, createMockResponse, createMockNext } from '../utils/test-utils';
-import { mockToken, invalidToken } from '../mocks/data';
+import { mockToken, invalidToken } from '../mocks';
 import type { AuthRequest } from '../../src/types';
 import { jwtUtil } from '../../src/utils/jwt.util';
 import { StatusCodes } from 'http-status-codes';

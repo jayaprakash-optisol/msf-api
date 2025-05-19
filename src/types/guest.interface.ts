@@ -19,6 +19,11 @@ export interface IGuestService {
     ServiceResponse<{ guest: Omit<Guest, 'password'>; username?: string; password?: string }>
   >;
 
+  confirmGuestCredentials(
+    guestId: string,
+    credentials: { username: string; password: string },
+  ): Promise<ServiceResponse<void>>;
+
   getGuestById(guestId: string): Promise<ServiceResponse<Omit<Guest, 'password'>>>;
 
   getGuestCredentials(

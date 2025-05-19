@@ -37,6 +37,15 @@ export const guestQuerySchema = z.object({
   search: z.string().optional(),
 });
 
+export const confirmGuestCredentialsSchema = z.object({
+  username: z.string().min(1),
+  password: z.string().min(1),
+});
+
 export const validateCreateGuest = createValidator(createGuestSchema);
 export const validateUpdateGuest = createValidator(updateGuestSchema);
 export const validateGuestQuery = createValidator(guestQuerySchema, 'query');
+export const validateConfirmGuestCredentials = createValidator(
+  confirmGuestCredentialsSchema,
+  'body',
+);
