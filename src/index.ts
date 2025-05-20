@@ -26,7 +26,6 @@ import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import routes from './routes';
 import { closeRedisConnections } from './utils/redis.util';
 import { logger, updateLoggerConfig, stream } from './utils';
-import { closeBullMQConnections } from './utils/bullmq.util';
 
 // Create Express application
 export const app: Application = express();
@@ -136,7 +135,6 @@ async function startServer(): Promise<void> {
       logger.info('SIGTERM received. Shutting down gracefully...');
       await closePool();
       await closeRedisConnections();
-      await closeBullMQConnections();
       server.close(() => {
         logger.info('Server closed');
         process.exit(0);

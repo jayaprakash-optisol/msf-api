@@ -7,4 +7,3 @@ export * from './error.util';
 export * from './jwt.util';
 export * from './pagination.util';
 export * from './responseMessages';
-export * from './bullmq.util';

@@ -52,6 +52,12 @@ const envSchema = z.object({
   REDIS_URL: z.string().optional(),
   REDIS_DB: z.string().default('0'),
 
+  // Sync
+  SYNC_INTERVAL_HOURS: z
+    .string()
+    .transform(val => parseInt(val, 10))
+    .default('6'),
+
   // Rate Limiting
   RATE_LIMIT_ENABLED: z
     .string()
