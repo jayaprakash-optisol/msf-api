@@ -12,6 +12,7 @@ import { closePool, initDatabaseConnection } from './config/database.config';
 import env from './config/env.config';
 import { initRedisClient } from './config/redis.config';
 import swaggerSpec from './docs/swagger';
+import { SchedulerService } from './services/scheduler.service';
 import {
   cacheControl,
   contentSecurityPolicy,
@@ -26,9 +27,13 @@ import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import routes from './routes';
 import { closeRedisConnections } from './utils/redis.util';
 import { logger, updateLoggerConfig, stream } from './utils';
+import { setupBullDashboard } from './utils/bull-dashboard.util';
 
 // Create Express application
 export const app: Application = express();
+
+// Global scheduler service instance for cleanup
+let schedulerService: SchedulerService;
 
 export async function configureApp(): Promise<void> {
   // Custom HTTP request logging middleware
@@ -41,8 +46,14 @@ export async function configureApp(): Promise<void> {
 
   // Initialize Redis client
   initRedisClient();
+  setupBullDashboard();
 
   // BullMQ will connect to Redis lazily when needed
+
+  // Initialize and start scheduler service
+  schedulerService = SchedulerService.getInstance();
+  await schedulerService.startScheduler();
+  logger.info('✅ Scheduler service initialized and started');
 
   // Security middleware
   app.use(helmet());
@@ -90,7 +101,7 @@ export async function configureApp(): Promise<void> {
   });
 
   // Swagger documentation (no rate limiting)
-  app.use(`/api-docs`, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.use(`${env.API_PREFIX}/api-docs`, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
   // Serve static files from the correct public directory
   app.use(express.static(path.resolve(__dirname, '../public')));
@@ -127,12 +138,21 @@ async function startServer(): Promise<void> {
 
     server.listen(env.PORT, () => {
       logger.info(`✅ Server is running on port ${env.PORT}`);
-      logger.info(`✅ API Documentation available at http://localhost:${env.PORT}/api-docs`);
+      logger.info(
+        `✅ API Documentation available at http://localhost:${env.PORT}${env.API_PREFIX}/api-docs`,
+      );
     });
 
     // Handle graceful shutdown
     process.on('SIGTERM', async () => {
       logger.info('SIGTERM received. Shutting down gracefully...');
+
+      // Stop scheduler service
+      if (schedulerService) {
+        await schedulerService.stopScheduler();
+        logger.info('✅ Scheduler service stopped');
+      }
+
       await closePool();
       await closeRedisConnections();
       server.close(() => {

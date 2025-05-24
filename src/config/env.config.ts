@@ -51,6 +51,7 @@ const envSchema = z.object({
   REDIS_PASSWORD: z.string().optional(),
   REDIS_URL: z.string().optional(),
   REDIS_DB: z.string().default('0'),
+  BULL_DASHBOARD_PORT: z.string().default('3001'),
 
   // Sync
   SYNC_INTERVAL_HOURS: z
@@ -79,6 +80,12 @@ const envSchema = z.object({
     .string()
     .transform(val => val === 'true')
     .default('false'),
+
+  // 3rd party APIS
+  PRODUCTS_API_URL: z.string(),
+  API_USER_NAME: z.string(),
+  API_PASSWORD: z.string(),
+  PRODUCT_SYNC_INTERVAL: z.string().transform(val => parseInt(val, 10)),
 });
 
 // Parse and validate environment variables

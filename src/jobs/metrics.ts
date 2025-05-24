@@ -1,11 +1,14 @@
 import { Counter, Gauge, Registry, collectDefaultMetrics } from 'prom-client';
-import { syncQueue } from './queue';
+import { ProductsFetchQueue } from './queues/products-fetch-queue';
 
 // Create a new registry
 export const registry = new Registry();
 
+// Create queue instances
+const productsFetchQueue = new ProductsFetchQueue();
+
 // Add default metrics to the registry
-collectDefaultMetrics({ register: registry, prefix: 'sync-queue_' });
+collectDefaultMetrics({ register: registry, prefix: 'msf_' });
 
 // Define metrics
 
@@ -24,7 +27,14 @@ export const jobDurationGauge = new Gauge({
   registers: [registry],
 });
 
-// Carriers fetched metrics
+// Products fetched metrics
+export const productsFetchedGauge = new Gauge({
+  name: 'products_fetched_total',
+  help: 'Total number of products fetched from API',
+  registers: [registry],
+});
+
+// Carriers fetched metrics (legacy)
 export const carriersFetchedGauge = new Gauge({
   name: 'sync_fetched_total',
   help: 'Total number of sync fetched from API',
@@ -33,7 +43,7 @@ export const carriersFetchedGauge = new Gauge({
 
 // Queue metrics
 export const queueSizeGauge = new Gauge({
-  name: 'sync_queue_size',
+  name: 'queue_size',
   help: 'Number of jobs in the queue',
   labelNames: ['queue', 'state'] as const,
   registers: [registry],
@@ -90,6 +100,7 @@ export function initMetrics(): void {
   // Reset all metrics to initial values
   jobExecutionCounter.reset();
   jobDurationGauge.reset();
+  productsFetchedGauge.reset();
   carriersFetchedGauge.reset();
   queueSizeGauge.reset();
   failedJobsCounter.reset();
@@ -103,19 +114,22 @@ export function initMetrics(): void {
 // Update queue metrics periodically
 export async function updateQueueMetrics(): Promise<void> {
   try {
-    // Get queue counts
-    const waitingCount = await syncQueue.getWaitingCount();
-    const activeCount = await syncQueue.getActiveCount();
-    const completedCount = await syncQueue.getCompletedCount();
-    const failedCount = await syncQueue.getFailedCount();
-    const delayedCount = await syncQueue.getDelayedCount();
+    // Update products fetch queue metrics
+    const productsQueue = productsFetchQueue.getQueue();
+    const productsWaitingCount = await productsQueue.getWaitingCount();
+    const productsActiveCount = await productsQueue.getActiveCount();
+    const productsCompletedCount = await productsQueue.getCompletedCount();
+    const productsFailedCount = await productsQueue.getFailedCount();
+    const productsDelayedCount = await productsQueue.getDelayedCount();
 
-    // Update metrics
-    queueSizeGauge.set({ queue: 'sync-queue', state: 'waiting' }, waitingCount);
-    queueSizeGauge.set({ queue: 'sync-queue', state: 'active' }, activeCount);
-    queueSizeGauge.set({ queue: 'sync-queue', state: 'completed' }, completedCount);
-    queueSizeGauge.set({ queue: 'sync-queue', state: 'failed' }, failedCount);
-    queueSizeGauge.set({ queue: 'sync-queue', state: 'delayed' }, delayedCount);
+    queueSizeGauge.set({ queue: 'products-fetch-queue', state: 'waiting' }, productsWaitingCount);
+    queueSizeGauge.set({ queue: 'products-fetch-queue', state: 'active' }, productsActiveCount);
+    queueSizeGauge.set(
+      { queue: 'products-fetch-queue', state: 'completed' },
+      productsCompletedCount,
+    );
+    queueSizeGauge.set({ queue: 'products-fetch-queue', state: 'failed' }, productsFailedCount);
+    queueSizeGauge.set({ queue: 'products-fetch-queue', state: 'delayed' }, productsDelayedCount);
 
     // Set Redis connection status to connected if we've made it this far
     redisConnectionGauge.set(1); // If we can fetch counts, Redis is connected
