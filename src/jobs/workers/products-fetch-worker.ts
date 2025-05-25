@@ -13,6 +13,17 @@ export class ProductsFetchWorker extends BaseWorker {
     this.productsFetchService = ProductsFetchService.getInstance();
   }
 
+  // Helper method to get API credentials with nullish coalescing
+  // This makes it easier to test the nullish coalescing behavior
+  protected getApiCredentials() {
+    const login = env.API_USER_NAME;
+    const password = env.API_PASSWORD;
+    return {
+      login: login ?? '',
+      password: password ?? ''
+    };
+  }
+
   protected async processJob(job: Job<ProductsFetchJobData>): Promise<void> {
     const now = new Date().toLocaleString();
     const startMessage = `⏱️ [${now}] Processing products fetch job ${job.id}`;
@@ -21,8 +32,7 @@ export class ProductsFetchWorker extends BaseWorker {
     try {
       await job.updateProgress(10);
 
-      const login = env.API_USER_NAME;
-      const password = env.API_PASSWORD;
+      const { login, password } = this.getApiCredentials();
 
       const { mode, size, filter } = job.data;
       const sanitizedJobData = { mode, size, filter, login: '***', password: '***' };
@@ -32,8 +42,8 @@ export class ProductsFetchWorker extends BaseWorker {
       await job.log('🔍 Starting products fetch from MSF API...');
 
       const result = await this.productsFetchService.fetchProducts({
-        login: login ?? '',
-        password: password ?? '',
+        login,
+        password,
         mode,
         size,
         filter,

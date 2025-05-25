@@ -95,6 +95,20 @@ describe('ProductsFetchService', () => {
       );
     });
 
+    it('should handle non-Error objects in error handling', async () => {
+      // Setup mocks with a non-Error object
+      vi.mocked(db.insert).mockReturnValue({
+        values: vi.fn().mockRejectedValue('String error'),
+      } as any);
+
+      await expect(productsFetchService.insertProductsData(mockApiProductItems)).rejects.toThrow(
+        InternalServerError,
+      );
+      await expect(productsFetchService.insertProductsData(mockApiProductItems)).rejects.toThrow(
+        'Unknown error'
+      );
+    });
+
     it('should map API product items correctly', async () => {
       // Setup mocks
       const mockValues = vi.fn().mockResolvedValue(undefined);
@@ -193,6 +207,18 @@ describe('ProductsFetchService', () => {
 
       await expect(productsFetchService.fetchProducts(mockProductsFetchOptions)).rejects.toThrow(
         InternalServerError,
+      );
+    });
+
+    it('should handle non-Error objects in fetch error handling', async () => {
+      // Setup fetch mock with a non-Error object
+      vi.mocked(fetch).mockRejectedValue('Network failure');
+
+      await expect(productsFetchService.fetchProducts(mockProductsFetchOptions)).rejects.toThrow(
+        InternalServerError,
+      );
+      await expect(productsFetchService.fetchProducts(mockProductsFetchOptions)).rejects.toThrow(
+        'Unknown error'
       );
     });
 
