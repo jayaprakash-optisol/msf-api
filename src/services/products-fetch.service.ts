@@ -9,7 +9,7 @@ import {
   IProductsFetchService,
   ApiProductItem,
 } from '../types';
-import { _ok, handleServiceError, logger, productsResponse } from '../utils';
+import { _ok, handleServiceError, productsResponse } from '../utils';
 
 export class ProductsFetchService implements IProductsFetchService {
   private static instance: ProductsFetchService;
@@ -35,7 +35,6 @@ export class ProductsFetchService implements IProductsFetchService {
   async insertProductsData(productData: ApiProductItem[]): Promise<number> {
     try {
       if (!productData || productData.length === 0) {
-        logger.info(productsResponse.success.noDataToInsert);
         return 0;
       }
 
@@ -54,11 +53,9 @@ export class ProductsFetchService implements IProductsFetchService {
       }));
 
       await db.insert(products).values(mappedProducts);
-      logger.info(`✅ Successfully inserted ${mappedProducts.length} products into database`);
 
       return mappedProducts.length;
     } catch (error) {
-      logger.error('❌ Error inserting products data:', error);
       throw handleServiceError(
         error,
         `${productsResponse.errors.insertFailed}: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -97,10 +94,8 @@ export class ProductsFetchService implements IProductsFetchService {
       }
 
       const data = await response.json();
-      logger.info(`✅ Successfully fetched ${data?.rows?.length ?? 0} products`);
       return _ok(data, productsResponse.success.fetchSuccess);
     } catch (error) {
-      logger.error('❌ Error fetching products:', error);
       throw handleServiceError(
         error,
         `${productsResponse.errors.fetchFailed}: ${error instanceof Error ? error.message : 'Unknown error'}`,

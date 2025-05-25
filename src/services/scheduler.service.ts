@@ -1,23 +1,32 @@
-import { ProductsFetchQueue, ProductsFetchWorker } from '../jobs';
 import { type ServiceResponse, ISchedulerService } from '../types';
 import { _ok, handleServiceError, logger, schedulerResponse } from '../utils';
+import { ProductsFetchQueue } from '../jobs/queues/products-fetch-queue';
+import { ProductsFetchWorker } from '../jobs/workers/products-fetch-worker';
 
 export class SchedulerService implements ISchedulerService {
   private static instance: SchedulerService;
   private readonly productsFetchQueue: ProductsFetchQueue;
   private readonly productsFetchWorker: ProductsFetchWorker;
 
-  private constructor() {
-    this.productsFetchQueue = new ProductsFetchQueue();
-    this.productsFetchWorker = new ProductsFetchWorker();
+  private constructor(
+    productsFetchQueue?: ProductsFetchQueue,
+    productsFetchWorker?: ProductsFetchWorker,
+  ) {
+    this.productsFetchQueue = productsFetchQueue ?? new ProductsFetchQueue();
+    this.productsFetchWorker = productsFetchWorker ?? new ProductsFetchWorker();
   }
 
   /**
    * Get singleton instance
+   * @param productsFetchQueue Optional ProductsFetchQueue instance for testing
+   * @param productsFetchWorker Optional ProductsFetchWorker instance for testing
    */
-  public static getInstance(): SchedulerService {
+  public static getInstance(
+    productsFetchQueue?: ProductsFetchQueue,
+    productsFetchWorker?: ProductsFetchWorker,
+  ): SchedulerService {
     if (!SchedulerService.instance) {
-      SchedulerService.instance = new SchedulerService();
+      SchedulerService.instance = new SchedulerService(productsFetchQueue, productsFetchWorker);
     }
     return SchedulerService.instance;
   }
@@ -28,8 +37,6 @@ export class SchedulerService implements ISchedulerService {
    */
   async startScheduler(): Promise<ServiceResponse<void>> {
     try {
-      logger.info('🚀 Starting scheduler service...');
-
       // Schedule the products fetch job
       await this.productsFetchQueue.scheduleProductsFetch();
 
@@ -47,8 +54,6 @@ export class SchedulerService implements ISchedulerService {
    */
   async stopScheduler(): Promise<ServiceResponse<void>> {
     try {
-      logger.info('🛑 Stopping scheduler service...');
-
       await this.productsFetchWorker.close();
       await this.productsFetchQueue.close();
 

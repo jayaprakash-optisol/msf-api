@@ -37,6 +37,7 @@ scanner(
         'src/validators/*.ts',
         'src/models/**',
         'src/config/**',
+        'src/jobs/metrics.ts',
       ].join(','),
       'sonar.exclusions':
         'node_modules/**,coverage/**,dist/**,tests/**,jest.config.ts,drizzle.config.ts',

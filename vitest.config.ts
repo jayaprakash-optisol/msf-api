@@ -30,6 +30,7 @@ export default defineConfig({
         'src/models/**',
         'src/config/**',
         'src/middleware/rateLimiter.middleware.ts',
+        'src/jobs/metrics.ts',
       ],
       thresholds: {
         statements: 85,
