@@ -1,7 +1,7 @@
 import { Job } from 'bullmq';
 import { BaseWorker } from '../base-worker';
-import { ProductsFetchJobData } from '../queues/products-fetch-queue';
-import { ProductsFetchService } from '../../services/products-fetch.service';
+import { ProductsFetchJobData } from '../queues';
+import { ProductsFetchService } from '../../services';
 import { logger } from '../../utils';
 import { env } from 'process';
 
@@ -20,7 +20,7 @@ export class ProductsFetchWorker extends BaseWorker {
     const password = env.API_PASSWORD;
     return {
       login: login ?? '',
-      password: password ?? ''
+      password: password ?? '',
     };
   }
 
@@ -35,7 +35,7 @@ export class ProductsFetchWorker extends BaseWorker {
       const { login, password } = this.getApiCredentials();
 
       const { mode, size, filter } = job.data;
-      const sanitizedJobData = { mode, size, filter, login: '***', password: '***' };
+      const sanitizedJobData = { mode, size, filter };
       await job.log(`Job data: ${JSON.stringify(sanitizedJobData)}`);
 
       await job.updateProgress(30);
