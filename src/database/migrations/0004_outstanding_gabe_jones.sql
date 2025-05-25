@@ -1,0 +1,1 @@
+ALTER TABLE "products" ALTER COLUMN "unidata_id" SET DATA TYPE varchar;

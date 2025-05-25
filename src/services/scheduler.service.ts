@@ -1,8 +1,8 @@
 import { ProductsFetchQueue, ProductsFetchWorker } from '../jobs';
-import { type ServiceResponse } from '../types';
-import { _ok, handleServiceError, logger } from '../utils';
+import { type ServiceResponse, ISchedulerService } from '../types';
+import { _ok, handleServiceError, logger, schedulerResponse } from '../utils';
 
-export class SchedulerService {
+export class SchedulerService implements ISchedulerService {
   private static instance: SchedulerService;
   private readonly productsFetchQueue: ProductsFetchQueue;
   private readonly productsFetchWorker: ProductsFetchWorker;
@@ -33,11 +33,11 @@ export class SchedulerService {
       // Schedule the products fetch job
       await this.productsFetchQueue.scheduleProductsFetch();
 
-      logger.info('✅ Scheduler service started successfully');
-      return _ok(undefined, 'Scheduler service started successfully');
+      logger.info(`✅ ${schedulerResponse.success.startSuccess}`);
+      return _ok(undefined, schedulerResponse.success.startSuccess);
     } catch (error) {
       logger.error('❌ Failed to start scheduler service:', error);
-      throw handleServiceError(error, 'Failed to start scheduler service');
+      throw handleServiceError(error, schedulerResponse.errors.startFailed);
     }
   }
 
@@ -52,11 +52,11 @@ export class SchedulerService {
       await this.productsFetchWorker.close();
       await this.productsFetchQueue.close();
 
-      logger.info('✅ Scheduler service stopped successfully');
-      return _ok(undefined, 'Scheduler service stopped successfully');
+      logger.info(schedulerResponse.success.stopSuccess);
+      return _ok(undefined, schedulerResponse.success.stopSuccess);
     } catch (error) {
       logger.error('❌ Failed to stop scheduler service:', error);
-      throw handleServiceError(error, 'Failed to stop scheduler service');
+      throw handleServiceError(error, schedulerResponse.errors.stopFailed);
     }
   }
 }

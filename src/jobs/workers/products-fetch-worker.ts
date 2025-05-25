@@ -3,6 +3,7 @@ import { BaseWorker } from '../base-worker';
 import { ProductsFetchJobData } from '../queues/products-fetch-queue';
 import { ProductsFetchService } from '../../services/products-fetch.service';
 import { logger } from '../../utils';
+import { env } from 'process';
 
 export class ProductsFetchWorker extends BaseWorker {
   private readonly productsFetchService: ProductsFetchService;
@@ -15,33 +16,39 @@ export class ProductsFetchWorker extends BaseWorker {
   protected async processJob(job: Job<ProductsFetchJobData>): Promise<void> {
     const now = new Date().toLocaleString();
     const startMessage = `⏱️ [${now}] Processing products fetch job ${job.id}`;
-    console.log(startMessage);
     await job.log(startMessage);
 
     try {
       await job.updateProgress(10);
-      await job.log(`Job data: ${JSON.stringify(job.data)}`);
 
-      const { login, password, mode, size, filter } = job.data;
+      const login = env.API_USER_NAME;
+      const password = env.API_PASSWORD;
+
+      const { mode, size, filter } = job.data;
+      const sanitizedJobData = { mode, size, filter, login: '***', password: '***' };
+      await job.log(`Job data: ${JSON.stringify(sanitizedJobData)}`);
 
       await job.updateProgress(30);
       await job.log('🔍 Starting products fetch from MSF API...');
 
       const result = await this.productsFetchService.fetchProducts({
-        login,
-        password,
+        login: login ?? '',
+        password: password ?? '',
         mode,
         size,
         filter,
       });
 
-      await job.updateProgress(80);
+      await job.updateProgress(50);
       await job.log(`📦 Successfully fetched ${result.data?.data?.length ?? 0} products`);
+      const products = result.data?.rows;
 
-      // Here you can add additional processing logic:
-      // - Save to database
-      // - Transform data
-      // - Send notifications, etc.
+      if (products && products.length > 0) {
+        await this.productsFetchService.insertProductsData(products);
+        await job.log(`💾 Successfully inserted ${products.length} products into database`);
+      } else {
+        await job.log('ℹ️ No products to insert');
+      }
 
       await job.updateProgress(100);
       await job.log('✅ Products fetch job completed successfully');
