@@ -32,6 +32,40 @@ vi.mock('../../src/controllers/auth.controller', () => {
           },
         });
       }),
+      logout: vi.fn((req, res) => {
+        return res.status(StatusCodes.OK).json({
+          success: true,
+          message: 'Logged out successfully',
+          data: null,
+        });
+      }),
+      logoutAllDevices: vi.fn((req, res) => {
+        return res.status(StatusCodes.OK).json({
+          success: true,
+          message: 'Logged out from all devices successfully',
+          data: null,
+        });
+      }),
+      getCurrentUser: vi.fn((req, res) => {
+        return res.status(StatusCodes.OK).json({
+          success: true,
+          message: 'Current user data retrieved successfully',
+          data: {
+            userId: 1,
+            email: 'test@example.com',
+            role: 'user',
+          },
+        });
+      }),
+      refreshToken: vi.fn((req, res) => {
+        return res.status(StatusCodes.OK).json({
+          success: true,
+          message: 'Token refreshed successfully',
+          data: {
+            token: 'new_mock_token',
+          },
+        });
+      }),
     })),
   };
 });

@@ -13,17 +13,17 @@ import {
   type User,
 } from '../types';
 import {
+  _ok,
+  buildPaginationAndFilters,
+  buildWhereClause,
   ConflictError,
   DatabaseError,
+  handleServiceError,
   NotFoundError,
   UnauthorizedError,
-  _ok,
-  handleServiceError,
   userResponse,
-  buildWhereClause,
 } from '../utils';
 import { hashPassword } from '../utils/encryption.util';
-import { buildPaginationAndFilters } from '../utils/pagination.util';
 
 export class UserService implements IUserService {
   private static instance: UserService;

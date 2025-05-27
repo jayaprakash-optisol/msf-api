@@ -1,23 +1,18 @@
 import { type Request, type Response } from 'express';
 
-import { asyncHandler } from '../middleware/async.middleware';
+import { asyncHandler } from '../middleware';
 import { UserService } from '../services';
 import { type IUserService } from '../types';
 import {
-  sendSuccess,
   BadRequestError,
-  NotFoundError,
-  userResponse,
   commonResponse,
+  NotFoundError,
+  sendSuccess,
+  userResponse,
 } from '../utils';
 
 export class UserController {
   private readonly userService: IUserService;
-
-  constructor() {
-    this.userService = UserService.getInstance();
-  }
-
   /**
    * Get all users with pagination
    */
@@ -38,7 +33,6 @@ export class UserController {
 
     sendSuccess(res, result.data);
   });
-
   /**
    * Get user by ID
    */
@@ -53,7 +47,6 @@ export class UserController {
 
     sendSuccess(res, result.data);
   });
-
   /**
    * Create a new user
    */
@@ -79,7 +72,6 @@ export class UserController {
 
     sendSuccess(res, result.data, userResponse.success.created);
   });
-
   /**
    * Update user
    */
@@ -102,7 +94,6 @@ export class UserController {
 
     sendSuccess(res, result.data, userResponse.success.updated);
   });
-
   /**
    * Delete user
    */
@@ -117,4 +108,8 @@ export class UserController {
 
     sendSuccess(res, undefined, userResponse.success.deleted);
   });
+
+  constructor() {
+    this.userService = UserService.getInstance();
+  }
 }

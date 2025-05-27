@@ -1,16 +1,11 @@
 import { type Request, type Response } from 'express';
-import { asyncHandler } from '../middleware/async.middleware';
+import { asyncHandler } from '../middleware';
 import { GuestService } from '../services';
 import { type IGuestService } from '../types';
-import { sendSuccess, BadRequestError, NotFoundError, guestResponse } from '../utils';
+import { BadRequestError, guestResponse, NotFoundError, sendSuccess } from '../utils';
 
 export class GuestController {
   private readonly guestService: IGuestService;
-
-  constructor() {
-    this.guestService = GuestService.getInstance();
-  }
-
   /**
    * Create a new guest
    */
@@ -20,7 +15,6 @@ export class GuestController {
       throw new BadRequestError(result.error ?? guestResponse.errors.creationFailed);
     sendSuccess(res, result.data, guestResponse.success.created);
   });
-
   /**
    * Confirm guest credentials
    */
@@ -31,7 +25,6 @@ export class GuestController {
       throw new BadRequestError(result.error ?? guestResponse.errors.credentialsConfirmationFailed);
     sendSuccess(res, result.data, guestResponse.success.credentialsConfirmed);
   });
-
   /**
    * Get guest credentials
    */
@@ -42,7 +35,6 @@ export class GuestController {
       throw new NotFoundError(result.error ?? guestResponse.errors.credentialsFailed);
     sendSuccess(res, result.data, guestResponse.success.credentialsViewMessage);
   });
-
   /**
    * Get all guests
    */
@@ -57,7 +49,6 @@ export class GuestController {
     if (!result.success) throw new BadRequestError(result.error ?? guestResponse.errors.listFailed);
     sendSuccess(res, result.data);
   });
-
   /**
    * Get guest by ID
    */
@@ -67,7 +58,6 @@ export class GuestController {
     if (!result.success) throw new NotFoundError(result.error ?? guestResponse.errors.notFound);
     sendSuccess(res, result.data);
   });
-
   /**
    * Update guest
    */
@@ -77,7 +67,6 @@ export class GuestController {
     if (!result.success) throw new NotFoundError(result.error ?? guestResponse.errors.updateFailed);
     sendSuccess(res, result.data, guestResponse.success.updated);
   });
-
   /**
    * Delete guest
    */
@@ -87,4 +76,8 @@ export class GuestController {
     if (!result.success) throw new NotFoundError(result.error ?? guestResponse.errors.deleteFailed);
     sendSuccess(res, undefined, guestResponse.success.deleted);
   });
+
+  constructor() {
+    this.guestService = GuestService.getInstance();
+  }
 }

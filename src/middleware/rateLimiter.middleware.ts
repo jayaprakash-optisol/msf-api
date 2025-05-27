@@ -29,6 +29,7 @@ const getDefaultOptions = (): RateLimitOptions => {
 
 export const rateLimiter = (
   options: RateLimitOptions = getDefaultOptions(),
+  redisClientFactory = getRedisClient,
 ): ((req: Request, res: Response, next: NextFunction) => void) => {
   return (req: Request, res: Response, next: NextFunction) => {
     // Check if rate limiting is enabled (it's a boolean value from env.config.ts)
@@ -36,8 +37,13 @@ export const rateLimiter = (
       return next();
     }
 
+    // Skip rate limiting for Swagger documentation endpoints
+    if (req.path.includes('/api-docs') || req.path.endsWith('/api-docs.json')) {
+      return next();
+    }
+
     const key = `${options.keyPrefix}:${req.ip}`;
-    const redis = getRedisClient();
+    const redis = redisClientFactory();
 
     redis
       .incr(key)

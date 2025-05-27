@@ -121,6 +121,7 @@ export class JwtUtil implements IJwtUtil {
         if (match) {
           const value = parseInt(match[1]);
           const unit = match[2];
+
           const multipliers = { s: 1, m: 60, h: 3600, d: 86400 };
           exp = iat + value * multipliers[unit as keyof typeof multipliers];
         } else {
