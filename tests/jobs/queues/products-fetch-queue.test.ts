@@ -58,7 +58,7 @@ describe('ProductsFetchQueue', () => {
         expect.objectContaining({
           timestamp: expect.any(String),
           mode: 7,
-          size: 5,
+          size: 1000,
           filter: 'type="MED"',
         }),
         getEnv('PRODUCT_SYNC_INTERVAL'),

@@ -48,6 +48,11 @@ const envSchema = z.object({
   REDIS_PASSWORD: z.string().optional(),
   REDIS_URL: z.string().optional(),
   REDIS_DB: z.string().default('0'),
+  REDIS_SSL_ENABLED: z
+    .string()
+    .transform(val => val === 'true')
+    .default('false'),
+
   BULL_DASHBOARD_PORT: z.string().default('3001'),
 
   // Sync
@@ -132,8 +137,6 @@ class Environment {
         process.exit(1);
       }
     } else {
-      console.log('config', this.config);
-
       logger.info('✅ Environment loaded from local .env file');
     }
 

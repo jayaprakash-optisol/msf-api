@@ -22,7 +22,6 @@ import {
   hsts,
   noSniff,
   notFoundHandler,
-  rateLimiter,
   xssFilter,
 } from './middleware';
 import routes from './routes';
@@ -93,9 +92,6 @@ export async function configureApp(): Promise<void> {
     );
   }
 
-  // Apply rate limiter to API routes
-  app.use(`${config.API_PREFIX}`, rateLimiter());
-
   // Configure web API routes with versioning
   app.use(config.API_PREFIX, routes);
 
@@ -148,7 +144,7 @@ async function startServer(): Promise<void> {
       );
     });
 
-    // Handle graceful shutdown
+    // Handle a graceful shutdown
     process.on('SIGTERM', async () => {
       logger.info('SIGTERM received. Shutting down gracefully...');
 

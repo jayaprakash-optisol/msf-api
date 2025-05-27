@@ -16,7 +16,7 @@ export class ProductsFetchQueue extends BaseQueue {
     const jobData: ProductsFetchJobData = {
       timestamp: new Date().toISOString(),
       mode: 7,
-      size: 5,
+      size: 1000,
       filter: 'type="MED"',
     };
 

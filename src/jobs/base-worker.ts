@@ -13,6 +13,12 @@ export abstract class BaseWorker {
       connection: {
         host: getEnv('REDIS_HOST'),
         port: Number(getEnv('REDIS_PORT')),
+        password: getEnv('REDIS_PASSWORD'),
+        tls: getEnv('REDIS_SSL_ENABLED')
+          ? {
+              rejectUnauthorized: false,
+            }
+          : undefined,
       },
       concurrency,
     });

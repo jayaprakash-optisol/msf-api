@@ -1,6 +1,5 @@
-import type { Config } from 'drizzle-kit';
 import * as dotenv from 'dotenv';
-import { azureKeyVault } from './src/utils/azure-keyvault.util';
+import { azureKeyVault } from './src/utils';
 
 dotenv.config();
 
@@ -9,14 +8,16 @@ const config = {
   out: './src/database/migrations',
   dialect: 'postgresql' as const,
   dbCredentials: {
-    host: '',
-    user: '',
-    password: '',
-    database: '',
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
     port: 5432,
-    ssl: {
-      rejectUnauthorized: false,
-    },
+    ssl: process.env.DB_SSL_ENABLED
+      ? {
+          rejectUnauthorized: false,
+        }
+      : false,
   },
   verbose: true,
   strict: false,
