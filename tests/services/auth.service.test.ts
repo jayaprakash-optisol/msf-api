@@ -266,12 +266,8 @@ describe('AuthService', () => {
       // Mock failed token revocation
       vi.mocked(jwtUtil.revokeToken).mockRejectedValueOnce(new Error('Failed to revoke token'));
 
-      // Call the logout method
-      const result = await authService.logout('mock_token');
-
-      // Verify the result
-      expect(result).toHaveProperty('success', false);
-      expect(result).toHaveProperty('error', 'Failed to log out');
+      // Test that an error is thrown
+      await expect(authService.logout('mock_token')).rejects.toThrow();
 
       // Verify that revokeToken was called with the correct token
       expect(jwtUtil.revokeToken).toHaveBeenCalledWith('mock_token');
@@ -307,12 +303,8 @@ describe('AuthService', () => {
         new Error('Failed to invalidate sessions'),
       );
 
-      // Call the logoutAllDevices method
-      const result = await authService.logoutAllDevices('user123');
-
-      // Verify the result
-      expect(result).toHaveProperty('success', false);
-      expect(result).toHaveProperty('error', 'Failed to log out from all devices');
+      // Test that an error is thrown
+      await expect(authService.logoutAllDevices('user123')).rejects.toThrow();
 
       // Verify that invalidateUserSessions was called with the correct user ID
       expect(jwtUtil.invalidateUserSessions).toHaveBeenCalledWith('user123');

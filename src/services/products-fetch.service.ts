@@ -1,4 +1,3 @@
-import env from '../config/env.config';
 import { db } from '../config/database.config';
 import { products } from '../models';
 import {
@@ -9,11 +8,11 @@ import {
   IProductsFetchService,
   ApiProductItem,
 } from '../types';
-import { _ok, handleServiceError, productsResponse } from '../utils';
+import { _ok, getEnv, handleServiceError, productsResponse } from '../utils';
 
 export class ProductsFetchService implements IProductsFetchService {
   private static instance: ProductsFetchService;
-  private readonly baseUrl = env.PRODUCTS_API_URL;
+  private readonly baseUrl = getEnv('PRODUCTS_API_URL');
 
   private constructor() {}
 

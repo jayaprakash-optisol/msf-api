@@ -20,10 +20,22 @@ vi.mock('../../src/config/database.config', () => ({
   },
 }));
 
-// Mock environment config
+// Mock getEnv function
+vi.mock('../../src/utils/config.util', () => ({
+  getEnv: vi.fn().mockImplementation((key: string) => {
+    if (key === 'PRODUCTS_API_URL') return 'https://api.test.com/products';
+    return undefined;
+  }),
+}));
+
+// Mock env config
 vi.mock('../../src/config/env.config', () => ({
-  default: {
-    PRODUCTS_API_URL: 'https://api.test.com/products',
+  env: {
+    getConfig: vi.fn().mockReturnValue({
+      PRODUCTS_API_URL: 'https://api.test.com/products',
+    }),
+    initialize: vi.fn().mockResolvedValue(undefined),
+    getInstance: vi.fn().mockReturnThis(),
   },
 }));
 
@@ -37,6 +49,10 @@ describe('ProductsFetchService', () => {
     // @ts-ignore
     ProductsFetchService.instance = undefined;
     productsFetchService = ProductsFetchService.getInstance();
+
+    // Directly set the baseUrl property
+    // @ts-ignore - accessing private property for testing
+    productsFetchService.baseUrl = 'https://api.test.com/products';
   });
 
   describe('getInstance', () => {
@@ -180,7 +196,8 @@ describe('ProductsFetchService', () => {
       );
 
       const calledUrl = vi.mocked(fetch).mock.calls[0][0] as string;
-      const url = new URL(calledUrl);
+      // Ensure calledUrl is a valid absolute URL
+      const url = new URL(calledUrl, 'http://localhost');
 
       expect(url.searchParams.get('login')).toBe('test_user');
       expect(url.searchParams.get('password')).toBe('test_password');

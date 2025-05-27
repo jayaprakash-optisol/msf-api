@@ -1,7 +1,7 @@
 import { type Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 
-import env from '../config/env.config';
+import { getEnv } from './config.util';
 import { type ServiceResponse } from '../types';
 
 import { encrypt } from './encryption.util';
@@ -58,7 +58,7 @@ export const sendSuccess = <T>(
   statusCode = StatusCodes.OK,
 ): void => {
   try {
-    const encryptedData = env?.ENCRYPTION_ENABLED ? encrypt(JSON.stringify(data)) : data;
+    const encryptedData = getEnv('ENCRYPTION_ENABLED') ? encrypt(JSON.stringify(data)) : data;
     const response = createSuccessResponse(encryptedData, message, statusCode);
     res.status(response.statusCode).json(response);
   } catch (error) {

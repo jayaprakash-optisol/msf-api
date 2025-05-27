@@ -1,7 +1,6 @@
 import { type NextFunction, type Request, type Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 
-import env from '../config/env.config';
 import { type AuthRequest } from '../types';
 import {
   AppError,
@@ -12,6 +11,7 @@ import {
   NotFoundError,
 } from '../utils/error.util';
 import { logger } from '../utils/logger';
+import { isDevelopment } from '../utils';
 
 // Define user interface for request
 type RequestWithUser = AuthRequest;
@@ -23,7 +23,7 @@ const handlePgError = (error: {
   message?: string;
 }): { statusCode: number; message: string; error: AppError } => {
   let statusCode = StatusCodes.INTERNAL_SERVER_ERROR;
-  let message = error.message || 'Database error';
+  let message = error.message ?? 'Database error';
   let transformedError: AppError;
 
   switch (error.code) {
@@ -136,7 +136,7 @@ export const errorHandler = (
   const response = {
     success: false,
     error: message,
-    ...(env.NODE_ENV === 'development' && { stack: error.stack }),
+    ...(isDevelopment() && { stack: error.stack }),
   };
 
   res.status(statusCode).json(response);

@@ -1,5 +1,4 @@
-import env from '../../config/env.config';
-import { logger } from '../../utils';
+import { logger, getEnv } from '../../utils';
 import { BaseQueue, BaseJobData } from '../base-queue';
 
 export interface ProductsFetchJobData extends BaseJobData {
@@ -21,7 +20,7 @@ export class ProductsFetchQueue extends BaseQueue {
       filter: 'type="MED"',
     };
 
-    await this.addRepeatingJob('fetch-products', jobData, env.PRODUCT_SYNC_INTERVAL);
+    await this.addRepeatingJob('fetch-products', jobData, getEnv('PRODUCT_SYNC_INTERVAL'));
 
     logger.info('✅ Scheduled products fetch job to run every 1 hour');
   }

@@ -4,8 +4,7 @@ import {
   ProductsFetchJobData,
 } from '../../../src/jobs';
 import { BaseQueue } from '../../../src/jobs';
-import env from '../../../src/config/env.config';
-import { logger } from '../../../src/utils';
+import { logger, getEnv } from '../../../src/utils';
 
 // Mock the BaseQueue class
 vi.mock('../../../src/jobs/base-queue', () => {
@@ -14,19 +13,18 @@ vi.mock('../../../src/jobs/base-queue', () => {
   };
 });
 
-// Mock the logger
+// Mock the logger and getEnv utility function
 vi.mock('../../../src/utils', () => ({
   logger: {
     info: vi.fn(),
     error: vi.fn(),
   },
-}));
-
-// Mock the env config
-vi.mock('../../../src/config/env.config', () => ({
-  default: {
-    PRODUCT_SYNC_INTERVAL: 3600000, // 1 hour in milliseconds
-  },
+  getEnv: vi.fn().mockImplementation((key: string) => {
+    if (key === 'PRODUCT_SYNC_INTERVAL') {
+      return 3600000; // 1 hour in milliseconds
+    }
+    return undefined;
+  }),
 }));
 
 describe('ProductsFetchQueue', () => {
@@ -63,7 +61,7 @@ describe('ProductsFetchQueue', () => {
           size: 5,
           filter: 'type="MED"',
         }),
-        env.PRODUCT_SYNC_INTERVAL,
+        getEnv('PRODUCT_SYNC_INTERVAL'),
       );
 
       // Verify that the timestamp is a valid ISO string

@@ -1,11 +1,11 @@
 import jwt from 'jsonwebtoken';
 
-import env from '../config/env.config';
 import { type IJwtUtil, type JwtPayload } from '../types';
 
 import { logger } from './logger';
 import { getRedisClient } from '../config/redis.config';
 import crypto from 'crypto';
+import { getEnv } from './config.util';
 
 /**
  * JWT utility functions for token generation and verification
@@ -99,7 +99,7 @@ export class JwtUtil implements IJwtUtil {
    */
   generateToken(payload: JwtPayload, customExpiresIn?: string | number): string {
     try {
-      const jwtSecret = env.JWT_SECRET;
+      const jwtSecret = getEnv('JWT_SECRET');
 
       if (!jwtSecret) {
         throw new Error('JWT_SECRET is not defined');
@@ -110,7 +110,7 @@ export class JwtUtil implements IJwtUtil {
       const iat = Math.floor(Date.now() / 1000);
 
       // Use custom expiration if provided, otherwise use JWT_EXPIRES_IN from env
-      const expiresIn = customExpiresIn ?? env.JWT_EXPIRES_IN;
+      const expiresIn = customExpiresIn ?? getEnv('JWT_EXPIRES_IN');
 
       // Calculate expiration timestamp
       let exp: number;
@@ -166,7 +166,7 @@ export class JwtUtil implements IJwtUtil {
    */
   async verifyToken(token: string): Promise<JwtPayload> {
     try {
-      const jwtSecret = env.JWT_SECRET;
+      const jwtSecret = getEnv('JWT_SECRET');
       if (!jwtSecret) {
         throw new Error('JWT_SECRET is not defined');
       }
@@ -192,7 +192,7 @@ export class JwtUtil implements IJwtUtil {
    */
   verifyTokenSync(token: string): JwtPayload {
     try {
-      const jwtSecret = env.JWT_SECRET;
+      const jwtSecret = getEnv('JWT_SECRET');
       if (!jwtSecret) {
         throw new Error('JWT_SECRET is not defined');
       }

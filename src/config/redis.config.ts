@@ -1,8 +1,6 @@
 import Redis from 'ioredis';
-
 import { logger } from '../utils/logger';
-
-import env from './env.config';
+import { env } from './env.config';
 
 // Create Redis client instance
 let redisClient: Redis | null = null;
@@ -13,11 +11,13 @@ export const initRedisClient = (): Redis => {
     return redisClient;
   }
 
+  const config = env.getConfig();
+
   const redisConfig = {
-    host: env.REDIS_HOST || 'localhost',
-    port: parseInt(env.REDIS_PORT || '6379', 10),
-    password: env.REDIS_PASSWORD,
-    db: parseInt(env.REDIS_DB || '0', 10),
+    host: config.REDIS_HOST || 'localhost',
+    port: parseInt(config.REDIS_PORT || '6379', 10),
+    password: config.REDIS_PASSWORD,
+    db: parseInt(config.REDIS_DB || '0', 10),
     retryStrategy: (times: number) => {
       const delay = Math.min(times * 50, 2000);
       return delay;

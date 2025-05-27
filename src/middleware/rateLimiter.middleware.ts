@@ -1,8 +1,9 @@
 import { type NextFunction, type Request, type Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 
-import env from '../config/env.config';
 import { getRedisClient } from '../config/redis.config';
+import { env } from '../config/env.config';
+import { getEnv, isDevelopment } from '../utils';
 
 interface RateLimitOptions {
   windowMs: number; // Time window in milliseconds
@@ -12,17 +13,18 @@ interface RateLimitOptions {
 
 // Set defaults based on environment
 const getDefaultOptions = (): RateLimitOptions => {
-  if (env.NODE_ENV === 'development') {
+  const config = env.getConfig();
+  if (isDevelopment()) {
     return {
-      windowMs: parseInt(env.TEST_RATE_LIMIT_WINDOW_MS, 10),
-      max: parseInt(env.TEST_RATE_LIMIT_MAX, 10),
+      windowMs: parseInt(config.TEST_RATE_LIMIT_WINDOW_MS, 10),
+      max: parseInt(config.TEST_RATE_LIMIT_MAX, 10),
       keyPrefix: 'test-rate-limit',
     };
   }
 
   return {
-    windowMs: parseInt(env.RATE_LIMIT_WINDOW_MS, 10),
-    max: parseInt(env.RATE_LIMIT_MAX, 10),
+    windowMs: parseInt(config.RATE_LIMIT_WINDOW_MS, 10),
+    max: parseInt(config.RATE_LIMIT_MAX, 10),
     keyPrefix: 'rate-limit',
   };
 };
@@ -33,7 +35,7 @@ export const rateLimiter = (
 ): ((req: Request, res: Response, next: NextFunction) => void) => {
   return (req: Request, res: Response, next: NextFunction) => {
     // Check if rate limiting is enabled (it's a boolean value from env.config.ts)
-    if (!env.RATE_LIMIT_ENABLED) {
+    if (!getEnv('RATE_LIMIT_ENABLED')) {
       return next();
     }
 

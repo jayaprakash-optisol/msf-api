@@ -30,11 +30,12 @@ vi.mock('../../src/utils/logger', () => ({
   },
 }));
 
-// Mock env config
-vi.mock('../../src/config/env.config', () => ({
-  default: {
-    ENCRYPTION_ENABLED: false,
-  },
+// Mock getEnv function
+vi.mock('../../src/utils/config.util', () => ({
+  getEnv: vi.fn().mockImplementation((key: string) => {
+    if (key === 'ENCRYPTION_ENABLED') return false;
+    return undefined;
+  }),
 }));
 
 describe('Response Utilities', () => {

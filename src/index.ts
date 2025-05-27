@@ -9,7 +9,7 @@ import swaggerUi from 'swagger-ui-express';
 import morgan from 'morgan';
 
 import { closePool, initDatabaseConnection } from './config/database.config';
-import env from './config/env.config';
+import { env } from './config/env.config';
 import { initRedisClient } from './config/redis.config';
 import swaggerSpec from './docs/swagger';
 import { SchedulerService } from './services';
@@ -36,10 +36,14 @@ export const app: Application = express();
 let schedulerService: SchedulerService;
 
 export async function configureApp(): Promise<void> {
+  // Initialize environment variables from Azure KeyVault if enabled
+  await env.initialize();
+  const config = env.getConfig();
+
   // Custom HTTP request logging middleware
 
   // Update logger with loaded environment config
-  updateLoggerConfig(env.LOG_LEVEL, env.LOG_FILE_PATH);
+  updateLoggerConfig(config.LOG_LEVEL, config.LOG_FILE_PATH);
 
   // Initialize database with loaded environment variables
   await initDatabaseConnection();
@@ -77,7 +81,7 @@ export async function configureApp(): Promise<void> {
   app.use(compression());
 
   // Logging
-  if (env.NODE_ENV === 'production') {
+  if (config.NODE_ENV === 'production') {
     app.use(morgan('combined', { stream }));
   } else {
     // Simple, clean log format for development
@@ -90,10 +94,10 @@ export async function configureApp(): Promise<void> {
   }
 
   // Apply rate limiter to API routes
-  app.use(`${env.API_PREFIX}`, rateLimiter());
+  app.use(`${config.API_PREFIX}`, rateLimiter());
 
   // Configure web API routes with versioning
-  app.use(env.API_PREFIX, routes);
+  app.use(config.API_PREFIX, routes);
 
   // Health check endpoint (no rate limiting)
   app.get('/health', (_req: Request, res: Response) => {
@@ -101,7 +105,7 @@ export async function configureApp(): Promise<void> {
   });
 
   // Swagger documentation (no rate limiting)
-  app.use(`${env.API_PREFIX}/api-docs`, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.use(`${config.API_PREFIX}/api-docs`, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
   // Serve static files from the correct public directory
   app.use(express.static(path.resolve(__dirname, '../public')));
@@ -134,12 +138,13 @@ export async function configureApp(): Promise<void> {
 async function startServer(): Promise<void> {
   try {
     await configureApp();
+    const config = env.getConfig();
     const server = http.createServer(app);
 
-    server.listen(env.PORT, () => {
-      logger.info(`✅ Server is running on port ${env.PORT}`);
+    server.listen(config.PORT, () => {
+      logger.info(`✅ Server is running on port ${config.PORT}`);
       logger.info(
-        `✅ API Documentation available at http://localhost:${env.PORT}${env.API_PREFIX}/api-docs`,
+        `✅ API Documentation available at http://localhost:${config.PORT}${config.API_PREFIX}/api-docs`,
       );
     });
 

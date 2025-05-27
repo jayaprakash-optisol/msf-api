@@ -1,5 +1,5 @@
 import { Queue, QueueOptions, JobsOptions } from 'bullmq';
-import env from '../config/env.config';
+import { getEnv } from '../utils/config.util';
 
 export interface BaseJobData {
   timestamp: string;
@@ -12,8 +12,8 @@ export abstract class BaseQueue {
   protected constructor(queueName: string, options?: Partial<QueueOptions>) {
     this.queue = new Queue(queueName, {
       connection: {
-        host: env.REDIS_HOST,
-        port: Number(env.REDIS_PORT),
+        host: getEnv('REDIS_HOST'),
+        port: Number(getEnv('REDIS_PORT')),
       },
       defaultJobOptions: {
         attempts: 3,

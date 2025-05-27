@@ -1,7 +1,7 @@
 import swaggerJSDoc from 'swagger-jsdoc';
 
 import { version } from '../../package.json';
-import env from '../config/env.config';
+import { getEnv } from '../utils/config.util';
 
 /**
  * Base definitions for API documentation
@@ -24,7 +24,7 @@ const swaggerDefinition = {
   },
   servers: [
     {
-      url: `http://localhost:${env.PORT}${env.API_PREFIX}`,
+      url: `http://localhost:${getEnv('PORT')}${getEnv('API_PREFIX')}`,
       description: 'Development Server',
     },
   ],

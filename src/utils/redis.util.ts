@@ -1,8 +1,7 @@
 import { Redis, type RedisOptions } from 'ioredis';
 
-import env from '../config/env.config';
-
 import { logger } from './logger';
+import { getEnv } from './config.util';
 
 // Keep track of all Redis clients
 const redisClients: Redis[] = [];
@@ -14,9 +13,9 @@ const redisClients: Redis[] = [];
  */
 export const createRedisClient = (options: Partial<RedisOptions> = {}): Redis => {
   const client = new Redis({
-    host: env.REDIS_HOST,
-    port: parseInt(env.REDIS_PORT, 10),
-    password: env.REDIS_PASSWORD ?? undefined,
+    host: getEnv('REDIS_HOST'),
+    port: parseInt(getEnv('REDIS_PORT'), 10),
+    password: getEnv('REDIS_PASSWORD') ?? undefined,
     enableOfflineQueue: false,
     ...options,
   });

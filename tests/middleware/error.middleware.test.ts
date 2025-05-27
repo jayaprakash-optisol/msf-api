@@ -34,6 +34,17 @@ vi.mock('../../src/config/env.config', () => ({
   default: {
     NODE_ENV: 'test',
   },
+  env: {
+    getConfig: vi.fn(() => ({
+      NODE_ENV: 'test',
+    })),
+    initialize: vi.fn().mockResolvedValue(undefined),
+    getInstance: vi.fn(() => ({
+      getConfig: vi.fn(() => ({
+        NODE_ENV: 'test',
+      }))
+    })),
+  }
 }));
 
 // Create a separate mock for development environment tests

@@ -1,4 +1,3 @@
-import { StatusCodes } from 'http-status-codes';
 import {
   type IAuthService,
   type IUserService,
@@ -111,13 +110,7 @@ export class AuthService implements IAuthService {
       await jwtUtil.revokeToken(token);
       return _ok(null, 'Logged out successfully');
     } catch (error) {
-      return {
-        success: false,
-        data: null,
-        error: 'Failed to log out',
-        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-        message: 'Failed to log out'
-      };
+      throw handleServiceError(error, authResponse.errors.logoutFailed);
     }
   }
 
@@ -130,13 +123,7 @@ export class AuthService implements IAuthService {
       await jwtUtil.invalidateUserSessions(userId);
       return _ok(null, 'Logged out from all devices successfully');
     } catch (error) {
-      return {
-        success: false,
-        data: null,
-        error: 'Failed to log out from all devices',
-        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-        message: 'Failed to log out from all devices'
-      };
+      throw handleServiceError(error, authResponse.errors.logoutFailed);
     }
   }
 }

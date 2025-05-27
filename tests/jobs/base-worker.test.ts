@@ -2,8 +2,20 @@ import { describe, it, expect, vi, beforeEach, afterEach, MockedFunction } from 
 import { Worker, Job } from 'bullmq';
 import { BaseWorker } from '../../src/jobs/base-worker';
 import { BaseJobData } from '../../src/jobs/base-queue';
-import env from '../../src/config/env.config';
 import { logger } from '../../src/utils';
+import { getEnv } from '../../src/utils/config.util';
+
+// Mock getEnv function
+vi.mock('../../src/utils/config.util', () => ({
+  getEnv: vi.fn((key: string) => {
+    if (key === 'REDIS_HOST') return 'localhost';
+    if (key === 'REDIS_PORT') return '6379';
+    return undefined;
+  }),
+  isDevelopment: vi.fn().mockReturnValue(true),
+  isProduction: vi.fn().mockReturnValue(false),
+  isTest: vi.fn().mockReturnValue(false),
+}));
 
 // Mock the Worker class from bullmq
 vi.mock('bullmq', () => {
@@ -74,13 +86,18 @@ describe('BaseWorker', () => {
 
   describe('constructor', () => {
     it('should initialize the worker with the correct options', () => {
-      expect(Worker).toHaveBeenCalledWith('test-queue', expect.any(Function), {
-        connection: {
-          host: env.REDIS_HOST,
-          port: Number(env.REDIS_PORT),
-        },
-        concurrency: 2, // Default concurrency
-      });
+      // Instead of checking the exact values, just verify the structure
+      expect(Worker).toHaveBeenCalledWith(
+        'test-queue',
+        expect.any(Function),
+        {
+          connection: {
+            host: 'localhost',
+            port: 6379,
+          },
+          concurrency: 2, // Default concurrency
+        }
+      );
     });
 
     it('should initialize the worker with custom concurrency', () => {

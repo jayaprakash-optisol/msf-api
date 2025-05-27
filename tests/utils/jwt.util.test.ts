@@ -24,22 +24,43 @@ vi.mock('../../src/config/redis.config', () => ({
   })),
 }));
 
-// Use vi.hoisted to ensure the mock is available
-const mockEnv = vi.hoisted(() => ({
-  JWT_SECRET: 'test_secret' as string | undefined,
-  JWT_EXPIRES_IN: '1h' as string | undefined,
+// Use vi.hoisted to ensure the mock is available before vi.mock calls
+const mockEnv = vi.hoisted(() => {
+  // Define default values for environment variables
+  const defaultEnv = {
+    JWT_SECRET: 'test_secret',
+    JWT_EXPIRES_IN: '1h',
+  };
+
+  // Create a mock getEnv function
+  const mockGetEnv = vi.fn().mockImplementation((key: string) => {
+    return defaultEnv[key as keyof typeof defaultEnv];
+  });
+
+  return { defaultEnv, mockGetEnv };
+});
+
+// Mock the config.util module
+vi.mock('../../src/utils/config.util', () => ({
+  getEnv: mockEnv.mockGetEnv,
 }));
 
-vi.mock('../../src/config/env.config', () => ({
-  default: mockEnv,
+// Mock the utils module
+vi.mock('../../src/utils', () => ({
+  logger: {
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+  getEnv: mockEnv.mockGetEnv,
 }));
 
 describe('JWT Utilities', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    // Reset env mock values to defaults for each test
-    mockEnv.JWT_SECRET = 'test_secret';
-    mockEnv.JWT_EXPIRES_IN = '1h';
+    // Reset mockGetEnv to return default values
+    mockEnv.mockGetEnv.mockImplementation((key: string) => {
+      return mockEnv.defaultEnv[key as keyof typeof mockEnv.defaultEnv];
+    });
   });
 
   describe('generateToken', () => {
@@ -74,16 +95,22 @@ describe('JWT Utilities', () => {
     });
 
     it('should throw error if JWT_SECRET is not defined', () => {
-      // Temporarily modify the mock environment value
-      mockEnv.JWT_SECRET = undefined;
+      // Temporarily modify the mock implementation
+      mockEnv.mockGetEnv.mockImplementation((key: string) => {
+        if (key === 'JWT_SECRET') return undefined;
+        return mockEnv.defaultEnv[key as keyof typeof mockEnv.defaultEnv];
+      });
 
       // Assert the function throws error
       expect(() => jwtUtil.generateToken(mockJwtPayload)).toThrow('JWT_SECRET is not defined');
     });
 
     it('should use default expires time if JWT_EXPIRES_IN is not specified', () => {
-      // Temporarily modify the mock environment value
-      mockEnv.JWT_EXPIRES_IN = undefined;
+      // Temporarily modify the mock implementation
+      mockEnv.mockGetEnv.mockImplementation((key: string) => {
+        if (key === 'JWT_EXPIRES_IN') return undefined;
+        return mockEnv.defaultEnv[key as keyof typeof mockEnv.defaultEnv];
+      });
 
       // Mock crypto.randomBytes
       vi.mocked(crypto.randomBytes).mockReturnValue({
@@ -174,8 +201,11 @@ describe('JWT Utilities', () => {
     });
 
     it('should throw error if JWT_SECRET is not defined', async () => {
-      // Temporarily modify the mock environment value
-      mockEnv.JWT_SECRET = undefined;
+      // Temporarily modify the mock implementation
+      mockEnv.mockGetEnv.mockImplementation((key: string) => {
+        if (key === 'JWT_SECRET') return undefined;
+        return mockEnv.defaultEnv[key as keyof typeof mockEnv.defaultEnv];
+      });
 
       // Assert the function throws error
       await expect(jwtUtil.verifyToken('valid_token')).rejects.toThrow('JWT_SECRET is not defined');
@@ -195,6 +225,11 @@ describe('JWT Utilities', () => {
     });
 
     it('should throw error if token is blacklisted', async () => {
+      // Ensure JWT_SECRET is defined for this test
+      mockEnv.mockGetEnv.mockImplementation((key: string) => {
+        return mockEnv.defaultEnv[key as keyof typeof mockEnv.defaultEnv];
+      });
+
       // Mock jwt.verify
       vi.mocked(jwt.verify).mockImplementation(() => ({ 
         ...mockJwtPayload,
@@ -243,15 +278,15 @@ describe('JWT Utilities', () => {
       expect(payload).toBeNull();
     });
 
-    it('should return null if decoded token is not an object', () => {
+    it('should return the decoded value even if it is not an object', () => {
       // Mock jwt.decode to return a string instead of an object
       vi.mocked(jwt.decode).mockImplementation(() => 'not-an-object');
 
       // Call the function
       const payload = jwtUtil.decodeToken('string_token');
 
-      // Assert the returned payload is null or the actual value
-      // This depends on the implementation - null is safer
+      // Assert the returned payload matches what jwt.decode returns
+      // The implementation casts to JwtPayload but doesn't validate the type
       expect(payload).toEqual('not-an-object');
     });
 

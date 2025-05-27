@@ -3,10 +3,10 @@ import { BaseWorker } from '../base-worker';
 import { ProductsFetchJobData } from '../queues';
 import { ProductsFetchService } from '../../services';
 import { logger } from '../../utils';
-import { env } from 'process';
-
+import { env } from '../../config/env.config';
 export class ProductsFetchWorker extends BaseWorker {
   private readonly productsFetchService: ProductsFetchService;
+  private readonly config = env.getConfig();
 
   constructor() {
     super('products-fetch-queue', 1); // Use concurrency of 1 for API calls
@@ -16,8 +16,8 @@ export class ProductsFetchWorker extends BaseWorker {
   // Helper method to get API credentials with nullish coalescing
   // This makes it easier to test the nullish coalescing behavior
   protected getApiCredentials() {
-    const login = env.API_USER_NAME;
-    const password = env.API_PASSWORD;
+    const login = this.config.API_USER_NAME;
+    const password = this.config.API_PASSWORD;
     return {
       login: login ?? '',
       password: password ?? '',

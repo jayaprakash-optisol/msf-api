@@ -1,13 +1,12 @@
 import bcrypt from 'bcrypt';
 
 import { db, initDatabaseConnection } from '../../config/database.config';
-import env from '../../config/env.config';
 import { users, guests } from '../../models';
-import { logger } from '../../utils/logger';
+import { logger, getEnv } from '../../utils';
 
 // Hash password function
 const hashPassword = async (password: string): Promise<string> => {
-  return bcrypt.hash(password, parseInt(env.BCRYPT_SALT_ROUNDS.toString(), 10));
+  return bcrypt.hash(password, parseInt(getEnv('BCRYPT_SALT_ROUNDS').toString(), 10));
 };
 
 // Insert sample users

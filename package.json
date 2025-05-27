@@ -22,6 +22,8 @@
     "db:drop": "drizzle-kit drop --config=./drizzle.config.ts"
   },
   "dependencies": {
+    "@azure/identity": "^4.0.0",
+    "@azure/keyvault-secrets": "^4.9.0",
     "@bull-board/api": "^6.9.6",
     "@bull-board/express": "^6.9.6",
     "bcrypt": "^6.0.0",

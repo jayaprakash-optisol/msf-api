@@ -30,24 +30,33 @@ vi.mock('../../../src/services/products-fetch.service', () => {
   };
 });
 
-// Mock the logger
+// Mock the env config
+const mockConfig = vi.hoisted(() => ({
+  API_USER_NAME: 'test-user',
+  API_PASSWORD: 'test-password',
+}));
+
+// Mock the logger and getEnv utility
 vi.mock('../../../src/utils', () => ({
   logger: {
     info: vi.fn(),
     error: vi.fn(),
   },
+  getEnv: vi.fn().mockImplementation((key: string) => {
+    if (key === 'API_USER_NAME') return mockConfig.API_USER_NAME;
+    if (key === 'API_PASSWORD') return mockConfig.API_PASSWORD;
+    return undefined;
+  }),
 }));
 
-// Create a mock for process.env using vi.hoisted to ensure it's available before vi.mock
-const mockEnv = vi.hoisted(() => ({
-  API_USER_NAME: 'test-user',
-  API_PASSWORD: 'test-password',
-}));
-
-// Mock the env
-vi.mock('process', () => {
+// Mock the env module
+vi.mock('../../../src/config/env.config', () => {
   return {
-    env: mockEnv,
+    env: {
+      getConfig: vi.fn().mockReturnValue(mockConfig),
+      initialize: vi.fn().mockResolvedValue(undefined),
+      getInstance: vi.fn().mockReturnThis(),
+    },
   };
 });
 
@@ -70,6 +79,10 @@ describe('ProductsFetchWorker', () => {
 
     // Create the worker after setting up the mock
     worker = new ProductsFetchWorker();
+
+    // Manually set the config property to ensure it's properly initialized
+    // @ts-ignore - accessing private property for testing
+    worker.config = mockConfig;
 
     // Create a mock job
     mockJob = {
@@ -108,12 +121,12 @@ describe('ProductsFetchWorker', () => {
       expect(originalResult.password).toBe('test-password');
 
       // Test with undefined values
-      const originalUserName = mockEnv.API_USER_NAME;
-      const originalPassword = mockEnv.API_PASSWORD;
+      const originalUserName = mockConfig.API_USER_NAME;
+      const originalPassword = mockConfig.API_PASSWORD;
 
       // Set to undefined
-      mockEnv.API_USER_NAME = undefined;
-      mockEnv.API_PASSWORD = undefined;
+      mockConfig.API_USER_NAME = undefined;
+      mockConfig.API_PASSWORD = undefined;
 
       // @ts-ignore - accessing protected method for testing
       const undefinedResult = worker.getApiCredentials();
@@ -121,8 +134,8 @@ describe('ProductsFetchWorker', () => {
       expect(undefinedResult.password).toBe('');
 
       // Test with null values
-      mockEnv.API_USER_NAME = null;
-      mockEnv.API_PASSWORD = null;
+      mockConfig.API_USER_NAME = null;
+      mockConfig.API_PASSWORD = null;
 
       // @ts-ignore - accessing protected method for testing
       const nullResult = worker.getApiCredentials();
@@ -130,8 +143,8 @@ describe('ProductsFetchWorker', () => {
       expect(nullResult.password).toBe('');
 
       // Restore original values
-      mockEnv.API_USER_NAME = originalUserName;
-      mockEnv.API_PASSWORD = originalPassword;
+      mockConfig.API_USER_NAME = originalUserName;
+      mockConfig.API_PASSWORD = originalPassword;
     });
   });
 

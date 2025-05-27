@@ -11,15 +11,16 @@ import {
 } from '../../src/middleware/security.middleware';
 import { createMockRequest, createMockNext } from '../utils/test-utils';
 
-// Create a mock for env.config.ts using vi.hoisted to ensure it's available before vi.mock
-const mockEnv = vi.hoisted(() => ({
-  CORS_ORIGIN: '*',
+// Mock getEnv function
+vi.mock('../../src/utils', () => ({
+  getEnv: vi.fn().mockImplementation((key: string) => {
+    if (key === 'CORS_ORIGIN') return '*';
+    return undefined;
+  }),
 }));
 
-// Mock env config
-vi.mock('../../src/config/env.config', () => ({
-  default: mockEnv,
-}));
+// Import getEnv after mocking
+import { getEnv } from '../../src/utils';
 
 describe('Security Middleware', () => {
   let req: Request;
@@ -28,6 +29,13 @@ describe('Security Middleware', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+
+    // Reset the getEnv mock to return '*' for CORS_ORIGIN
+    vi.mocked(getEnv).mockImplementation((key: string) => {
+      if (key === 'CORS_ORIGIN') return '*';
+      return undefined;
+    });
+
     req = createMockRequest() as Request;
 
     // Create mock response with setHeader as a spy
@@ -50,8 +58,11 @@ describe('Security Middleware', () => {
 
     it('should allow specific origins when CORS_ORIGIN is a comma-separated list', () => {
       // Temporarily change the mock to return a comma-separated list
-      const originalCorsOrigin = mockEnv.CORS_ORIGIN;
-      mockEnv.CORS_ORIGIN = 'https://example.com, https://test.com';
+      const originalGetEnv = vi.mocked(getEnv);
+      vi.mocked(getEnv).mockImplementation((key: string) => {
+        if (key === 'CORS_ORIGIN') return 'https://example.com, https://test.com';
+        return originalGetEnv(key);
+      });
 
       const callback = vi.fn();
       corsOptions.origin('https://example.com', callback);
@@ -64,14 +75,17 @@ describe('Security Middleware', () => {
       corsOptions.origin('https://test.com', callback);
       expect(callback).toHaveBeenCalledWith(null, true);
 
-      // Restore the original value
-      mockEnv.CORS_ORIGIN = originalCorsOrigin;
+      // Restore the original mock
+      vi.mocked(getEnv).mockImplementation(originalGetEnv);
     });
 
     it('should reject disallowed origins when CORS_ORIGIN is a comma-separated list', () => {
       // Temporarily change the mock to return a comma-separated list
-      const originalCorsOrigin = mockEnv.CORS_ORIGIN;
-      mockEnv.CORS_ORIGIN = 'https://example.com, https://test.com';
+      const originalGetEnv = vi.mocked(getEnv);
+      vi.mocked(getEnv).mockImplementation((key: string) => {
+        if (key === 'CORS_ORIGIN') return 'https://example.com, https://test.com';
+        return originalGetEnv(key);
+      });
 
       const callback = vi.fn();
       corsOptions.origin('https://malicious.com', callback);
@@ -82,21 +96,24 @@ describe('Security Middleware', () => {
         false
       );
 
-      // Restore the original value
-      mockEnv.CORS_ORIGIN = originalCorsOrigin;
+      // Restore the original mock
+      vi.mocked(getEnv).mockImplementation(originalGetEnv);
     });
 
     it('should allow requests with no origin when CORS_ORIGIN is a comma-separated list', () => {
       // Temporarily change the mock to return a comma-separated list
-      const originalCorsOrigin = mockEnv.CORS_ORIGIN;
-      mockEnv.CORS_ORIGIN = 'https://example.com, https://test.com';
+      const originalGetEnv = vi.mocked(getEnv);
+      vi.mocked(getEnv).mockImplementation((key: string) => {
+        if (key === 'CORS_ORIGIN') return 'https://example.com, https://test.com';
+        return originalGetEnv(key);
+      });
 
       const callback = vi.fn();
       corsOptions.origin(undefined, callback);
       expect(callback).toHaveBeenCalledWith(null, true);
 
-      // Restore the original value
-      mockEnv.CORS_ORIGIN = originalCorsOrigin;
+      // Restore the original mock
+      vi.mocked(getEnv).mockImplementation(originalGetEnv);
     });
 
     it('should have correct methods, headers and options', () => {

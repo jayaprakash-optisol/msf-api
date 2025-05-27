@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
+import { azureKeyVault, logger } from '../utils';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -84,18 +85,65 @@ const envSchema = z.object({
   API_USER_NAME: z.string(),
   API_PASSWORD: z.string(),
   PRODUCT_SYNC_INTERVAL: z.string().transform(val => parseInt(val, 10)),
+
+  // Azure Key Vault
+  AZURE_KEYVAULT: z.string().optional(),
+  AZURE_KEYVAULT_ENABLED: z
+    .string()
+    .transform(val => val === 'true')
+    .default('false'),
 });
 
-// Parse and validate environment variables
-let parsedEnv;
+// Type for the parsed environment variables
+export type EnvConfig = z.infer<typeof envSchema>;
 
-try {
-  parsedEnv = envSchema.parse(process.env);
-} catch (error) {
-  console.error('Error parsing environment variables:', error);
-  process.exit(1);
+// Global environment configuration singleton
+class Environment {
+  private static instance: Environment;
+  private initialized = false;
+  private config: EnvConfig;
+
+  private constructor() {
+    // Initial parse from process.env
+    this.config = envSchema.parse(process.env);
+  }
+
+  public static getInstance(): Environment {
+    if (!Environment.instance) {
+      Environment.instance = new Environment();
+    }
+    return Environment.instance;
+  }
+
+  public async initialize(): Promise<void> {
+    if (this.initialized) {
+      logger.info('Environment already initialized, skipping');
+      return;
+    }
+
+    if (process.env.ENCRYPTION_ENABLED === 'true') {
+      try {
+        const secrets = await azureKeyVault.getAllSecrets();
+        Object.assign(process.env, secrets);
+        this.config = envSchema.parse(process.env);
+        logger.info('✅ Azure Key Vault secrets loaded successfully');
+      } catch (error) {
+        logger.error('Failed to load Azure Key Vault secrets:', error);
+        process.exit(1);
+      }
+    } else {
+      console.log('config', this.config);
+
+      logger.info('✅ Environment loaded from local .env file');
+    }
+
+    this.initialized = true;
+  }
+
+  public getConfig(): EnvConfig {
+    return this.config;
+  }
 }
 
-// Export the validated environment variables
-const env = parsedEnv;
-export default env;
+// Export singleton instance
+export const env = Environment.getInstance();

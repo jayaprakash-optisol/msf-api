@@ -1,7 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach, MockedFunction } from 'vitest';
 import { Queue, QueueOptions, JobsOptions } from 'bullmq';
 import { BaseQueue, BaseJobData } from '../../src/jobs';
-import env from '../../src/config/env.config';
+
+// Mock config.util
+vi.mock('../../src/utils/config.util', () => ({
+  getEnv: vi.fn((key: string) => {
+    if (key === 'REDIS_HOST') return 'localhost';
+    if (key === 'REDIS_PORT') return '6379';
+    return undefined;
+  }),
+  isDevelopment: vi.fn().mockReturnValue(true),
+  isProduction: vi.fn().mockReturnValue(false),
+  isTest: vi.fn().mockReturnValue(false),
+}));
 
 // Mock the Queue class from bullmq
 vi.mock('bullmq', () => {
@@ -53,8 +64,8 @@ describe('BaseQueue', () => {
     it('should initialize the queue with the correct options', () => {
       expect(Queue).toHaveBeenCalledWith('test-queue', {
         connection: {
-          host: env.REDIS_HOST,
-          port: Number(env.REDIS_PORT),
+          host: 'localhost',
+          port: 6379,
         },
         defaultJobOptions: {
           attempts: 3,

@@ -1,8 +1,8 @@
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { logger } from '../utils/logger';
-import env from './env.config';
+import { logger } from '../utils';
 import * as schema from '../models';
+import { env } from './env.config';
 
 // Initialize pool with default config (will be properly initialized in initDatabaseConnection)
 let pool = new Pool();
@@ -16,15 +16,16 @@ export const db = drizzle(pool, { schema });
 // Function to initialize database connection with proper config
 export const initDatabaseConnection = async (): Promise<void> => {
   try {
-    // Create pool with loaded environment variables
+    // Create a pool with loaded environment variables
+    const config = env.getConfig();
     const newPool = new Pool({
-      database: env.DB_NAME,
-      user: env.DB_USER,
-      password: env.DB_PASSWORD,
-      host: env.DB_HOST,
-      port: parseInt(env.DB_PORT ?? '5432'),
+      database: config.DB_NAME,
+      user: config.DB_USER,
+      password: config.DB_PASSWORD,
+      host: config.DB_HOST,
+      port: parseInt(config.DB_PORT ?? '5432'),
       max: 20,
-      ssl: env.DB_SSL_ENABLED
+      ssl: config.DB_SSL_ENABLED
         ? {
             rejectUnauthorized: false,
           }
@@ -57,11 +58,11 @@ export const initDatabaseConnection = async (): Promise<void> => {
 export const testConnection = async (): Promise<void> => {
   try {
     const client = await pool.connect();
-    logger.info('✅ PostgreSQL connected successfully');
+    logger.info('✅ PostgresSQL connected successfully');
     client.release();
   } catch (err: unknown) {
     logger.error(
-      `❌ PostgreSQL connection error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      `❌ PostgresSQL connection error: ${err instanceof Error ? err.message : 'Unknown error'}`,
     );
   }
 };

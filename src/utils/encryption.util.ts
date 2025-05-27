@@ -1,9 +1,8 @@
 import crypto from 'crypto';
 
-import env from '../config/env.config';
-
 import { logger } from './logger';
 import bcrypt from 'bcrypt';
+import { getEnv } from './config.util';
 
 // Encryption algorithm
 const ALGORITHM = 'aes-256-gcm';
@@ -38,7 +37,7 @@ export const encrypt = (data: string): string => {
     const iv = crypto.randomBytes(IV_LENGTH);
 
     // Derive the key from the password
-    const key = deriveKey(env.ENCRYPTION_KEY, salt);
+    const key = deriveKey(getEnv('ENCRYPTION_KEY'), salt);
 
     // Create cipher
     const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
@@ -78,7 +77,7 @@ export const decrypt = (encryptedData: string): string => {
     const encrypted = buffer.subarray(SALT_LENGTH + IV_LENGTH + TAG_LENGTH);
 
     // Derive the key from the password
-    const key = deriveKey(env.ENCRYPTION_KEY, salt);
+    const key = deriveKey(getEnv('ENCRYPTION_KEY'), salt);
 
     // Create decipher
     const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
@@ -116,6 +115,7 @@ export const isEncrypted = (data: any): boolean => {
  * @returns The hashed password
  */
 export const hashPassword = (password: string): Promise<string> => {
-  const saltRounds = parseInt(env.BCRYPT_SALT_ROUNDS.toString(), 10);
+  const saltRoundsValue = getEnv('BCRYPT_SALT_ROUNDS') ?? 10;
+  const saltRounds = typeof saltRoundsValue === 'string' ? parseInt(saltRoundsValue, 10) : saltRoundsValue;
   return bcrypt.hash(password, saltRounds);
 };

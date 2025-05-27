@@ -1,7 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StatusCodes } from 'http-status-codes';
 import { mockUsers, mockNewUser } from '../mocks';
-import env from '../../src/config/env.config';
+
+// Mock getEnv function
+vi.mock('../../src/utils/config.util', () => ({
+  getEnv: vi.fn().mockImplementation((key: string) => {
+    if (key === 'BCRYPT_SALT_ROUNDS') return 10;
+    return undefined;
+  }),
+}));
+
+import { getEnv } from '../../src/utils/config.util';
 
 // Import pagination utils directly to mock them
 import * as paginationUtils from '../../src/utils/pagination.util';
@@ -631,9 +640,6 @@ describe('UserService', () => {
   // Test private methods
   describe('private methods', () => {
     it('hashPassword should hash a password', async () => {
-      // Mock env config to ensure BCRYPT_SALT_ROUNDS is properly processed
-      const originalEnv = { ...env };
-
       // Test with different types of salt values
       const testCases = [
         { saltValue: 10, expected: 10 }, // Number
@@ -641,8 +647,14 @@ describe('UserService', () => {
       ];
 
       for (const testCase of testCases) {
-        // Update env for this test case
-        (env as any).BCRYPT_SALT_ROUNDS = testCase.saltValue;
+        // Mock getEnv to return the test case salt value
+        const originalGetEnv = vi.mocked(getEnv);
+        vi.mocked(getEnv).mockImplementation((key) => {
+          if (key === 'BCRYPT_SALT_ROUNDS') {
+            return testCase.saltValue;
+          }
+          return originalGetEnv(key);
+        });
 
         // Mock hash implementation for this specific test
         const originalHash = vi.mocked(bcrypt.hash);
@@ -659,12 +671,10 @@ describe('UserService', () => {
         expect(hashedPassword).toBe('hashed_password123');
         expect(bcrypt.hash).toHaveBeenCalledWith('password123', testCase.expected);
 
-        // Restore the original mock for the next iteration
+        // Restore the original mocks for the next iteration
         vi.mocked(bcrypt.hash).mockImplementation(originalHash);
+        vi.mocked(getEnv).mockImplementation(originalGetEnv);
       }
-
-      // Restore original env
-      Object.assign(env, originalEnv);
     });
 
     it('findUserOrFail should return user when found', async () => {

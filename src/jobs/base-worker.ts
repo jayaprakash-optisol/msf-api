@@ -1,5 +1,5 @@
 import { Worker, Job } from 'bullmq';
-import env from '../config/env.config';
+import { getEnv } from '../utils/config.util';
 import { BaseJobData } from './base-queue';
 import { logger } from '../utils';
 
@@ -11,8 +11,8 @@ export abstract class BaseWorker {
     this.queueName = queueName;
     this.worker = new Worker(queueName, async job => this.processJob(job), {
       connection: {
-        host: env.REDIS_HOST,
-        port: Number(env.REDIS_PORT),
+        host: getEnv('REDIS_HOST'),
+        port: Number(getEnv('REDIS_PORT')),
       },
       concurrency,
     });

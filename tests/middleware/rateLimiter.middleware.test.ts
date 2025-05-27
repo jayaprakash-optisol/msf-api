@@ -18,22 +18,93 @@ vi.mock('../../src/config/redis.config', () => {
   };
 });
 
-vi.mock('../../src/config/env.config', () => {
+// Mock getEnv function and isDevelopment function
+vi.mock('../../src/utils/config.util', () => {
+  const mockGetEnv = vi.fn().mockImplementation((key: string) => {
+    if (key === 'NODE_ENV') return 'development';
+    if (key === 'RATE_LIMIT_ENABLED') return true;
+    if (key === 'TEST_RATE_LIMIT_WINDOW_MS') return '1000';
+    if (key === 'TEST_RATE_LIMIT_MAX') return '3';
+    if (key === 'RATE_LIMIT_WINDOW_MS') return '900000';
+    if (key === 'RATE_LIMIT_MAX') return '100';
+    return undefined;
+  });
+
   return {
-    default: {
-      NODE_ENV: 'development',
-      RATE_LIMIT_ENABLED: true,
-      TEST_RATE_LIMIT_WINDOW_MS: '1000',
-      TEST_RATE_LIMIT_MAX: '3',
-      RATE_LIMIT_WINDOW_MS: '900000',
-      RATE_LIMIT_MAX: '100',
+    getEnv: mockGetEnv,
+    isDevelopment: vi.fn().mockReturnValue(true),
+    isProduction: vi.fn().mockReturnValue(false),
+    isTest: vi.fn().mockReturnValue(false),
+  };
+});
+
+// Mock utils module
+vi.mock('../../src/utils', () => {
+  const mockGetEnv = vi.fn().mockImplementation((key: string) => {
+    if (key === 'NODE_ENV') return 'development';
+    if (key === 'RATE_LIMIT_ENABLED') return true;
+    if (key === 'TEST_RATE_LIMIT_WINDOW_MS') return '1000';
+    if (key === 'TEST_RATE_LIMIT_MAX') return '3';
+    if (key === 'RATE_LIMIT_WINDOW_MS') return '900000';
+    if (key === 'RATE_LIMIT_MAX') return '100';
+    return undefined;
+  });
+
+  return {
+    getEnv: mockGetEnv,
+    isDevelopment: vi.fn().mockReturnValue(true),
+    isProduction: vi.fn().mockReturnValue(false),
+    isTest: vi.fn().mockReturnValue(false),
+  };
+});
+
+// Mock env config
+vi.mock('../../src/config/env.config', () => {
+  const mockConfig = {
+    NODE_ENV: 'development',
+    RATE_LIMIT_ENABLED: true,
+    TEST_RATE_LIMIT_WINDOW_MS: '1000',
+    TEST_RATE_LIMIT_MAX: '3',
+    RATE_LIMIT_WINDOW_MS: '900000',
+    RATE_LIMIT_MAX: '100',
+  };
+
+  return {
+    env: {
+      getConfig: vi.fn(() => mockConfig),
+      initialize: vi.fn().mockResolvedValue(undefined),
+      getInstance: vi.fn(() => ({
+        getConfig: vi.fn(() => mockConfig)
+      })),
+    }
+  };
+});
+
+// Mock utils module with getEnv and isDevelopment
+vi.mock('../../src/utils', () => {
+  return {
+    getEnv: vi.fn().mockImplementation((key) => {
+      if (key === 'RATE_LIMIT_ENABLED') return true;
+      if (key === 'NODE_ENV') return 'development';
+      if (key === 'TEST_RATE_LIMIT_WINDOW_MS') return '1000';
+      if (key === 'TEST_RATE_LIMIT_MAX') return '3';
+      if (key === 'RATE_LIMIT_WINDOW_MS') return '900000';
+      if (key === 'RATE_LIMIT_MAX') return '100';
+      return undefined;
+    }),
+    isDevelopment: vi.fn().mockReturnValue(true),
+    isProduction: vi.fn().mockReturnValue(false),
+    isTest: vi.fn().mockReturnValue(false),
+    logger: {
+      info: vi.fn(),
+      error: vi.fn(),
     },
   };
 });
 
 // Import after mocks
 import { rateLimiter } from '../../src/middleware/rateLimiter.middleware';
-import env from '../../src/config/env.config';
+import { getEnv } from '../../src/utils/config.util';
 
 describe('Rate Limiter Middleware', () => {
   beforeEach(() => {
@@ -46,9 +117,12 @@ describe('Rate Limiter Middleware', () => {
   });
 
   it('should bypass rate limiting when disabled', async () => {
-    // Setup
-    const originalValue = env.RATE_LIMIT_ENABLED;
-    (env as any).RATE_LIMIT_ENABLED = false;
+    // Setup - temporarily mock getEnv to return false for RATE_LIMIT_ENABLED
+    const originalMockGetEnv = vi.mocked(getEnv);
+    vi.mocked(getEnv).mockImplementation((key: string) => {
+      if (key === 'RATE_LIMIT_ENABLED') return false;
+      return originalMockGetEnv(key);
+    });
 
     const req = { ip: '127.0.0.1', path: '/api/v1/users' } as Request;
     const res = { setHeader: vi.fn() } as unknown as Response;
@@ -62,8 +136,8 @@ describe('Rate Limiter Middleware', () => {
     expect(next).toHaveBeenCalled();
     expect(mockIncr).not.toHaveBeenCalled();
 
-    // Cleanup
-    (env as any).RATE_LIMIT_ENABLED = originalValue;
+    // Cleanup - restore original mock
+    vi.mocked(getEnv).mockImplementation(originalMockGetEnv);
   });
 
   it('should bypass rate limiting for Swagger API docs endpoints', async () => {
@@ -91,8 +165,11 @@ describe('Rate Limiter Middleware', () => {
 
   it.skip('should apply rate limiting for non-Swagger endpoints', async () => {
     // Ensure rate limiting is enabled
-    const originalValue = env.RATE_LIMIT_ENABLED;
-    (env as any).RATE_LIMIT_ENABLED = true;
+    const originalMockGetEnv = vi.mocked(getEnv);
+    vi.mocked(getEnv).mockImplementation((key: string) => {
+      if (key === 'RATE_LIMIT_ENABLED') return true;
+      return originalMockGetEnv(key);
+    });
 
     const req = { ip: '127.0.0.1', path: '/api/v1/users' } as Request;
     const res = { setHeader: vi.fn() } as unknown as Response;
@@ -109,8 +186,8 @@ describe('Rate Limiter Middleware', () => {
     expect(res.setHeader).toHaveBeenCalledWith('X-RateLimit-Limit', 3);
     expect(next).toHaveBeenCalled();
 
-    // Restore original value
-    (env as any).RATE_LIMIT_ENABLED = originalValue;
+    // Restore original mock
+    vi.mocked(getEnv).mockImplementation(originalMockGetEnv);
   });
 
   it('should accept custom options', () => {
@@ -131,13 +208,23 @@ describe('Rate Limiter Middleware', () => {
   it('should use correct environment-based defaults', () => {
     // Test that different environments use different defaults
     // We can only test this indirectly by checking that it doesn't throw
-    (env as any).NODE_ENV = 'development';
+    const originalMockGetEnv = vi.mocked(getEnv);
+
+    // Test with development environment
+    vi.mocked(getEnv).mockImplementation((key: string) => {
+      if (key === 'NODE_ENV') return 'development';
+      return originalMockGetEnv(key);
+    });
     expect(() => rateLimiter()).not.toThrow();
 
-    (env as any).NODE_ENV = 'production';
+    // Test with production environment
+    vi.mocked(getEnv).mockImplementation((key: string) => {
+      if (key === 'NODE_ENV') return 'production';
+      return originalMockGetEnv(key);
+    });
     expect(() => rateLimiter()).not.toThrow();
 
-    // Restore original
-    (env as any).NODE_ENV = 'development';
+    // Restore original mock
+    vi.mocked(getEnv).mockImplementation(originalMockGetEnv);
   });
 });
