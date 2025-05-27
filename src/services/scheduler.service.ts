@@ -1,7 +1,6 @@
-import { type ServiceResponse, ISchedulerService } from '../types';
+import { ISchedulerService, type ServiceResponse } from '../types';
 import { _ok, handleServiceError, logger, schedulerResponse } from '../utils';
-import { ProductsFetchQueue } from '../jobs/queues/products-fetch-queue';
-import { ProductsFetchWorker } from '../jobs/workers/products-fetch-worker';
+import { ProductsFetchQueue, ProductsFetchWorker } from '../jobs';
 
 export class SchedulerService implements ISchedulerService {
   private static instance: SchedulerService;

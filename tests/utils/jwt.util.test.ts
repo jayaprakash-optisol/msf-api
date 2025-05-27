@@ -3,14 +3,25 @@ import { jwtUtil } from '../../src/utils/jwt.util';
 import { mockJwtPayload } from '../mocks';
 import jwt from 'jsonwebtoken';
 import { StatusCodes } from 'http-status-codes';
+import crypto from 'crypto';
 
 // Mock dependencies
 vi.mock('jsonwebtoken');
+vi.mock('crypto');
 vi.mock('../../src/utils/logger', () => ({
   logger: {
     error: vi.fn(),
     debug: vi.fn(),
   },
+}));
+
+// Mock Redis client
+vi.mock('../../src/config/redis.config', () => ({
+  getRedisClient: vi.fn(() => ({
+    get: vi.fn().mockResolvedValue(null),
+    setex: vi.fn().mockResolvedValue('OK'),
+    del: vi.fn().mockResolvedValue(1),
+  })),
 }));
 
 // Use vi.hoisted to ensure the mock is available
@@ -33,16 +44,30 @@ describe('JWT Utilities', () => {
 
   describe('generateToken', () => {
     it('should generate JWT token using the correct payload and options', () => {
+      // Mock crypto.randomBytes
+      vi.mocked(crypto.randomBytes).mockReturnValue({
+        toString: () => 'mock-session-id',
+      } as any);
+
       // Mock jwt.sign
       vi.mocked(jwt.sign).mockImplementation(() => 'mocked_token');
 
       // Call the function
       const token = jwtUtil.generateToken(mockJwtPayload);
 
-      // Assert jwt.sign was called with correct arguments
-      expect(jwt.sign).toHaveBeenCalledWith(mockJwtPayload, 'test_secret', {
-        expiresIn: '1h',
-      });
+      // Assert jwt.sign was called with enhanced payload and algorithm
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ...mockJwtPayload,
+          jti: 'mock-session-id',
+          iat: expect.any(Number),
+          exp: expect.any(Number),
+        }),
+        'test_secret',
+        {
+          algorithm: 'HS512',
+        }
+      );
 
       // Assert the returned token
       expect(token).toBe('mocked_token');
@@ -59,16 +84,36 @@ describe('JWT Utilities', () => {
     it('should use default expires time if JWT_EXPIRES_IN is not specified', () => {
       // Temporarily modify the mock environment value
       mockEnv.JWT_EXPIRES_IN = undefined;
+
+      // Mock crypto.randomBytes
+      vi.mocked(crypto.randomBytes).mockReturnValue({
+        toString: () => 'mock-session-id',
+      } as any);
+
       vi.mocked(jwt.sign).mockImplementation(() => 'mocked_token');
 
       // Call the function
       jwtUtil.generateToken(mockJwtPayload);
 
-      // Check jwt.sign was called with the payload and secret
-      expect(jwt.sign).toHaveBeenCalledWith(mockJwtPayload, 'test_secret', expect.anything());
+      // Check jwt.sign was called with the enhanced payload and algorithm
+      expect(jwt.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ...mockJwtPayload,
+          jti: 'mock-session-id',
+        }),
+        'test_secret',
+        {
+          algorithm: 'HS512',
+        }
+      );
     });
 
     it('should handle jwt.sign throwing an error', () => {
+      // Mock crypto.randomBytes
+      vi.mocked(crypto.randomBytes).mockReturnValue({
+        toString: () => 'mock-session-id',
+      } as any);
+
       // Mock jwt.sign to throw an error
       vi.mocked(jwt.sign).mockImplementation(() => {
         throw new Error('Signing error');
@@ -80,23 +125,31 @@ describe('JWT Utilities', () => {
   });
 
   describe('verifyToken', () => {
-    it('should return successful response with payload if token is valid', () => {
+    it('should return payload if token is valid', async () => {
       // Mock jwt.verify
-      vi.mocked(jwt.verify).mockImplementation(() => ({ ...mockJwtPayload }));
+      vi.mocked(jwt.verify).mockImplementation(() => ({ 
+        ...mockJwtPayload,
+        jti: 'test-jti',
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 3600
+      }));
 
       // Call the function
-      const result = jwtUtil.verifyToken('valid_token');
+      const result = await jwtUtil.verifyToken('valid_token');
 
       // Assert jwt.verify was called with correct arguments
       expect(jwt.verify).toHaveBeenCalledWith('valid_token', 'test_secret');
 
-      // Assert the returned result is successful with payload
-      expect(result.success).toBe(true);
-      expect(result.data).toEqual(mockJwtPayload);
-      expect(result.statusCode).toBe(StatusCodes.OK);
+      // Assert the returned result is the payload
+      expect(result).toEqual(expect.objectContaining({
+        userId: mockJwtPayload.userId,
+        email: mockJwtPayload.email,
+        role: mockJwtPayload.role,
+        jti: 'test-jti'
+      }));
     });
 
-    it('should return error response if token is expired', () => {
+    it('should throw error if token is expired', async () => {
       // Create a TokenExpiredError
       const tokenExpiredError = new Error('jwt expired');
       tokenExpiredError.name = 'TokenExpiredError';
@@ -106,49 +159,29 @@ describe('JWT Utilities', () => {
         throw tokenExpiredError;
       });
 
-      // Call the function
-      const result = jwtUtil.verifyToken('expired_token');
-
-      // Assert the result is an error response
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('Token expired');
-      expect(result.statusCode).toBe(StatusCodes.UNAUTHORIZED);
-      expect(result.data).toEqual({
-        userId: '',
-        email: '',
-        role: '',
-      });
+      // Assert the function throws error
+      await expect(jwtUtil.verifyToken('expired_token')).rejects.toThrow('jwt expired');
     });
 
-    it('should return error response if token is invalid', () => {
+    it('should throw error if token is invalid', async () => {
       // Mock jwt.verify to throw generic error
       vi.mocked(jwt.verify).mockImplementation(() => {
         throw new Error('Invalid signature');
       });
 
-      // Call the function
-      const result = jwtUtil.verifyToken('invalid_token');
-
-      // Assert the result is an error response
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('Invalid signature');
-      expect(result.statusCode).toBe(StatusCodes.UNAUTHORIZED);
+      // Assert the function throws error
+      await expect(jwtUtil.verifyToken('invalid_token')).rejects.toThrow('Invalid signature');
     });
 
-    it('should return error response if JWT_SECRET is not defined', () => {
+    it('should throw error if JWT_SECRET is not defined', async () => {
       // Temporarily modify the mock environment value
       mockEnv.JWT_SECRET = undefined;
 
-      // Call the function
-      const result = jwtUtil.verifyToken('valid_token');
-
-      // Assert the result is an error response
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('JWT_SECRET is not defined');
-      expect(result.statusCode).toBe(StatusCodes.UNAUTHORIZED);
+      // Assert the function throws error
+      await expect(jwtUtil.verifyToken('valid_token')).rejects.toThrow('JWT_SECRET is not defined');
     });
 
-    it('should handle malformed JWT tokens', () => {
+    it('should throw error for malformed JWT tokens', async () => {
       // Mock jwt.verify to throw JsonWebTokenError
       const jsonWebTokenError = new Error('jwt malformed');
       jsonWebTokenError.name = 'JsonWebTokenError';
@@ -157,13 +190,28 @@ describe('JWT Utilities', () => {
         throw jsonWebTokenError;
       });
 
-      // Call the function
-      const result = jwtUtil.verifyToken('malformed_token');
+      // Assert the function throws error
+      await expect(jwtUtil.verifyToken('malformed_token')).rejects.toThrow('jwt malformed');
+    });
 
-      // Assert the result is an error response
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('jwt malformed');
-      expect(result.statusCode).toBe(StatusCodes.UNAUTHORIZED);
+    it('should throw error if token is blacklisted', async () => {
+      // Mock jwt.verify
+      vi.mocked(jwt.verify).mockImplementation(() => ({ 
+        ...mockJwtPayload,
+        jti: 'blacklisted-jti',
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 3600
+      }));
+
+      // Mock isTokenBlacklisted to return true
+      const isTokenBlacklistedSpy = vi.spyOn(jwtUtil, 'isTokenBlacklisted');
+      isTokenBlacklistedSpy.mockResolvedValueOnce(true);
+
+      // Assert the function throws error
+      await expect(jwtUtil.verifyToken('blacklisted_token')).rejects.toThrow('Token has been expired');
+
+      // Restore the spy
+      isTokenBlacklistedSpy.mockRestore();
     });
   });
 

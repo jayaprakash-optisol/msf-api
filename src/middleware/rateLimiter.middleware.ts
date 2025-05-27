@@ -14,15 +14,15 @@ interface RateLimitOptions {
 const getDefaultOptions = (): RateLimitOptions => {
   if (env.NODE_ENV === 'development') {
     return {
-      windowMs: parseInt(env.TEST_RATE_LIMIT_WINDOW_MS, 10), // 1 second for testing
-      max: parseInt(env.TEST_RATE_LIMIT_MAX, 10), // 3 requests per window for testing
+      windowMs: parseInt(env.TEST_RATE_LIMIT_WINDOW_MS, 10),
+      max: parseInt(env.TEST_RATE_LIMIT_MAX, 10),
       keyPrefix: 'test-rate-limit',
     };
   }
 
   return {
-    windowMs: parseInt(env.RATE_LIMIT_WINDOW_MS, 10), // 15 minutes default
-    max: parseInt(env.RATE_LIMIT_MAX, 10), // 100 requests per window default
+    windowMs: parseInt(env.RATE_LIMIT_WINDOW_MS, 10),
+    max: parseInt(env.RATE_LIMIT_MAX, 10),
     keyPrefix: 'rate-limit',
   };
 };
@@ -32,7 +32,7 @@ export const rateLimiter = (
 ): ((req: Request, res: Response, next: NextFunction) => void) => {
   return (req: Request, res: Response, next: NextFunction) => {
     // Check if rate limiting is enabled (it's a boolean value from env.config.ts)
-    if (env.RATE_LIMIT_ENABLED === false) {
+    if (!env.RATE_LIMIT_ENABLED) {
       return next();
     }
 
@@ -41,25 +41,22 @@ export const rateLimiter = (
 
     redis
       .incr(key)
-      .then(current => {
+      .then(async current => {
         if (current === 1) {
-          redis.pexpire(key, options.windowMs);
+          await redis.pexpire(key, options.windowMs);
         }
 
-        return redis.pttl(key).then(ttl => {
-          res.setHeader('X-RateLimit-Limit', options.max);
-          res.setHeader('X-RateLimit-Remaining', Math.max(0, options.max - current));
-          res.setHeader('X-RateLimit-Reset', Math.ceil(ttl / 1000));
-
-          if (current > options.max) {
-            return res.status(StatusCodes.TOO_MANY_REQUESTS).json({
-              error: 'Too many requests, please try again later.',
-              retryAfter: Math.ceil(ttl / 1000),
-            });
-          }
-
-          next();
-        });
+        const ttl = await redis.pttl(key);
+        res.setHeader('X-RateLimit-Limit', options.max);
+        res.setHeader('X-RateLimit-Remaining', Math.max(0, options.max - current));
+        res.setHeader('X-RateLimit-Reset', Math.ceil(ttl / 1000));
+        if (current > options.max) {
+          return res.status(StatusCodes.TOO_MANY_REQUESTS).json({
+            error: 'Too many requests, please try again later.',
+            retryAfter: Math.ceil(ttl / 1000),
+          });
+        }
+        next();
       })
       .catch(error => {
         console.error('Rate limiter error:', error);

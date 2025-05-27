@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { authenticate, authorize } from '../../src/middleware/auth.middleware';
 import { createMockRequest, createMockResponse, createMockNext } from '../utils/test-utils';
-import { mockToken, invalidToken } from '../mocks';
+import { mockToken, invalidToken, mockJwtPayload } from '../mocks';
 import type { AuthRequest } from '../../src/types';
 import { jwtUtil } from '../../src/utils/jwt.util';
-import { StatusCodes } from 'http-status-codes';
 
 // Mock dependencies
 vi.mock('jsonwebtoken');
@@ -20,7 +19,7 @@ describe('Auth Middleware', () => {
   });
 
   describe('authenticate middleware', () => {
-    it('should call next() if token is valid', () => {
+    it('should call next() if token is valid', async () => {
       // Mock request with token
       const req = createMockRequest({
         headers: {
@@ -30,21 +29,15 @@ describe('Auth Middleware', () => {
       const { res } = createMockResponse();
       const next = createMockNext();
 
-      // Mock JWT verification to return success
-      vi.mocked(jwtUtil.verifyToken).mockReturnValue({
-        success: true,
-        data: {
-          userId: '1',
-          email: 'test@example.com',
-          role: 'user',
-        },
-        statusCode: StatusCodes.OK,
-        message: 'Success',
-        error: null,
+      // Mock JWT verification to return payload
+      vi.mocked(jwtUtil.verifyToken).mockResolvedValue({
+        userId: '1',
+        email: 'test@example.com',
+        role: 'user',
       });
 
       // Call middleware
-      authenticate(req, res, next);
+      await authenticate(req, res, next);
 
       // Should set req.user and call next
       expect(req.user).toEqual({
@@ -56,14 +49,14 @@ describe('Auth Middleware', () => {
       expect(next).toHaveBeenCalledWith();
     });
 
-    it('should return 401 if no token is provided', () => {
+    it('should return 401 if no token is provided', async () => {
       // Mock request without token
       const req = createMockRequest() as AuthRequest;
       const { res } = createMockResponse();
       const next = createMockNext();
 
       // Call middleware
-      authenticate(req, res, next);
+      await authenticate(req, res, next);
 
       // Should pass error to next
       expect(next).toHaveBeenCalledWith(
@@ -74,7 +67,7 @@ describe('Auth Middleware', () => {
       );
     });
 
-    it('should return 401 if Authorization header has incorrect format', () => {
+    it('should return 401 if Authorization header has incorrect format', async () => {
       // Mock request with invalid token format
       const req = createMockRequest({
         headers: {
@@ -85,7 +78,7 @@ describe('Auth Middleware', () => {
       const next = createMockNext();
 
       // Call middleware
-      authenticate(req, res, next);
+      await authenticate(req, res, next);
 
       // Should pass error to next
       expect(next).toHaveBeenCalledWith(
@@ -96,7 +89,7 @@ describe('Auth Middleware', () => {
       );
     });
 
-    it('should return 401 if token is invalid', () => {
+    it('should return 401 if token is invalid', async () => {
       // Mock request with invalid token
       const req = createMockRequest({
         headers: {
@@ -107,16 +100,10 @@ describe('Auth Middleware', () => {
       const next = createMockNext();
 
       // Mock JWT verification to fail
-      vi.mocked(jwtUtil.verifyToken).mockReturnValue({
-        success: false,
-        data: null,
-        statusCode: StatusCodes.UNAUTHORIZED,
-        message: 'Invalid token',
-        error: 'Invalid token',
-      });
+      vi.mocked(jwtUtil.verifyToken).mockRejectedValue(new Error('Invalid token'));
 
       // Call middleware
-      authenticate(req, res, next);
+      await authenticate(req, res, next);
 
       // Should pass error to next
       expect(next).toHaveBeenCalledWith(
@@ -127,7 +114,7 @@ describe('Auth Middleware', () => {
       );
     });
 
-    it('should pass role information from token to request', () => {
+    it('should pass role information from token to request', async () => {
       // Mock request with token that has role information
       const req = createMockRequest({
         headers: {
@@ -138,20 +125,14 @@ describe('Auth Middleware', () => {
       const next = createMockNext();
 
       // Mock JWT verification to return admin role
-      vi.mocked(jwtUtil.verifyToken).mockReturnValue({
-        success: true,
-        data: {
-          userId: '1',
-          email: 'test@example.com',
-          role: 'admin',
-        },
-        statusCode: StatusCodes.OK,
-        message: 'Success',
-        error: null,
+      vi.mocked(jwtUtil.verifyToken).mockResolvedValue({
+        userId: '1',
+        email: 'test@example.com',
+        role: 'admin',
       });
 
       // Call middleware
-      authenticate(req, res, next);
+      await authenticate(req, res, next);
 
       // Should set req.user with role information
       expect(req.user).toEqual({
@@ -162,7 +143,7 @@ describe('Auth Middleware', () => {
       expect(next).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle verification errors gracefully', () => {
+    it('should handle verification errors gracefully', async () => {
       // Mock request with token
       const req = createMockRequest({
         headers: {
@@ -173,43 +154,10 @@ describe('Auth Middleware', () => {
       const next = createMockNext();
 
       // Mock JWT verification to throw unexpected error
-      vi.mocked(jwtUtil.verifyToken).mockImplementation(() => {
-        throw new Error('Unexpected error');
-      });
+      vi.mocked(jwtUtil.verifyToken).mockRejectedValue(new Error('Unexpected error'));
 
       // Call middleware
-      authenticate(req, res, next);
-
-      // Should pass error to next
-      expect(next).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: 'Invalid token',
-          statusCode: 401,
-        }),
-      );
-    });
-
-    it('should handle token verification with missing data', () => {
-      // Mock request with token
-      const req = createMockRequest({
-        headers: {
-          authorization: `Bearer ${mockToken}`,
-        },
-      }) as AuthRequest;
-      const { res } = createMockResponse();
-      const next = createMockNext();
-
-      // Mock JWT verification to return success but with missing data
-      vi.mocked(jwtUtil.verifyToken).mockReturnValue({
-        success: true,
-        data: undefined,
-        statusCode: StatusCodes.OK,
-        message: 'Success',
-        error: null,
-      });
-
-      // Call middleware
-      authenticate(req, res, next);
+      await authenticate(req, res, next);
 
       // Should pass error to next
       expect(next).toHaveBeenCalledWith(

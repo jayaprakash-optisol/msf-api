@@ -22,6 +22,9 @@ export interface JwtPayload {
   userId: string;
   email: string;
   role: string;
+  iat?: number;
+  exp?: number;
+  jti?: string;
   [key: string]: unknown;
 }
 
@@ -43,4 +46,14 @@ export interface IAuthService {
     email: string,
     password: string,
   ): Promise<ServiceResponse<{ user: Omit<User, 'password'>; token: string }>>;
+
+  /**
+   * Logout user by invalidating their session
+   */
+  logout(token: string): Promise<ServiceResponse<null>>;
+
+  /**
+   * Logout from all devices by invalidating all user sessions
+   */
+  logoutAllDevices(userId: string): Promise<ServiceResponse<null>>;
 }

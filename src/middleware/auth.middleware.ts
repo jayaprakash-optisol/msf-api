@@ -1,10 +1,14 @@
 import { type NextFunction, type Response } from 'express';
 
 import { type AuthRequest } from '../types';
-import { UnauthorizedError, ForbiddenError, jwtUtil } from '../utils';
+import { ForbiddenError, jwtUtil, UnauthorizedError } from '../utils';
 
-// Verify JWT token from Authorization header
-export const authenticate = (req: AuthRequest, _res: Response, next: NextFunction): void => {
+// Verify JWT token from the Authorization header
+export const authenticate = async (
+  req: AuthRequest,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
 
@@ -12,16 +16,12 @@ export const authenticate = (req: AuthRequest, _res: Response, next: NextFunctio
       throw new UnauthorizedError('No token provided');
     }
 
-    const decoded = jwtUtil.verifyToken(token);
-
-    if (!decoded.success || !decoded.data) {
-      throw new UnauthorizedError('Invalid token');
-    }
+    const decoded = await jwtUtil.verifyToken(token);
 
     req.user = {
-      id: decoded.data.userId.toString(),
-      email: decoded.data.email,
-      role: decoded.data.role,
+      id: decoded.userId.toString(),
+      email: decoded.email,
+      role: decoded.role,
     };
     next();
   } catch {

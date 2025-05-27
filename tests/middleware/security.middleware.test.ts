@@ -11,6 +11,16 @@ import {
 } from '../../src/middleware/security.middleware';
 import { createMockRequest, createMockNext } from '../utils/test-utils';
 
+// Create a mock for env.config.ts using vi.hoisted to ensure it's available before vi.mock
+const mockEnv = vi.hoisted(() => ({
+  CORS_ORIGIN: '*',
+}));
+
+// Mock env config
+vi.mock('../../src/config/env.config', () => ({
+  default: mockEnv,
+}));
+
 describe('Security Middleware', () => {
   let req: Request;
   let res: Response;
@@ -32,10 +42,61 @@ describe('Security Middleware', () => {
   });
 
   describe('corsOptions', () => {
-    it('should allow all origins', () => {
+    it('should allow all origins when CORS_ORIGIN is "*"', () => {
       const callback = vi.fn();
       corsOptions.origin('https://example.com', callback);
       expect(callback).toHaveBeenCalledWith(null, true);
+    });
+
+    it('should allow specific origins when CORS_ORIGIN is a comma-separated list', () => {
+      // Temporarily change the mock to return a comma-separated list
+      const originalCorsOrigin = mockEnv.CORS_ORIGIN;
+      mockEnv.CORS_ORIGIN = 'https://example.com, https://test.com';
+
+      const callback = vi.fn();
+      corsOptions.origin('https://example.com', callback);
+      expect(callback).toHaveBeenCalledWith(null, true);
+
+      // Reset the callback mock
+      callback.mockReset();
+
+      // Test with another allowed origin
+      corsOptions.origin('https://test.com', callback);
+      expect(callback).toHaveBeenCalledWith(null, true);
+
+      // Restore the original value
+      mockEnv.CORS_ORIGIN = originalCorsOrigin;
+    });
+
+    it('should reject disallowed origins when CORS_ORIGIN is a comma-separated list', () => {
+      // Temporarily change the mock to return a comma-separated list
+      const originalCorsOrigin = mockEnv.CORS_ORIGIN;
+      mockEnv.CORS_ORIGIN = 'https://example.com, https://test.com';
+
+      const callback = vi.fn();
+      corsOptions.origin('https://malicious.com', callback);
+      expect(callback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Origin https://malicious.com not allowed by CORS policy',
+        }),
+        false
+      );
+
+      // Restore the original value
+      mockEnv.CORS_ORIGIN = originalCorsOrigin;
+    });
+
+    it('should allow requests with no origin when CORS_ORIGIN is a comma-separated list', () => {
+      // Temporarily change the mock to return a comma-separated list
+      const originalCorsOrigin = mockEnv.CORS_ORIGIN;
+      mockEnv.CORS_ORIGIN = 'https://example.com, https://test.com';
+
+      const callback = vi.fn();
+      corsOptions.origin(undefined, callback);
+      expect(callback).toHaveBeenCalledWith(null, true);
+
+      // Restore the original value
+      mockEnv.CORS_ORIGIN = originalCorsOrigin;
     });
 
     it('should have correct methods, headers and options', () => {

@@ -1,13 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../src/services/auth.service';
-import { mockUsers, mockNewUser } from '../mocks';
+import { mockNewUser, mockUsers } from '../mocks';
 import { StatusCodes } from 'http-status-codes';
-import {
-  NotFoundError,
-  ConflictError,
-  UnauthorizedError,
-  BadRequestError,
-} from '../../src/utils/error.util';
+import { BadRequestError, ConflictError, UnauthorizedError } from '../../src/utils/error.util';
 import { _ok } from '../../src/utils/response.util';
 
 // Mock implementation
@@ -16,6 +11,19 @@ const mockCreateUser = vi.fn();
 const mockVerifyPassword = vi.fn();
 const mockGetUserById = vi.fn();
 const mockCheckEmailAvailability = vi.fn();
+
+// Mock env.config.ts to prevent environment variable validation errors
+vi.mock('../../src/config/env.config', () => ({
+  default: {
+    JWT_SECRET: 'test_secret',
+    JWT_EXPIRES_IN: '1h',
+    ENCRYPTION_KEY: 'test-encryption-key',
+    PRODUCTS_API_URL: 'http://test-api.com',
+    API_USER_NAME: 'test-user',
+    API_PASSWORD: 'test-password',
+    PRODUCT_SYNC_INTERVAL: '60',
+  },
+}));
 
 // Import mocked dependencies
 vi.mock('bcrypt', () => ({
@@ -32,6 +40,8 @@ vi.mock('jsonwebtoken', () => ({
 vi.mock('../../src/utils/jwt.util', () => ({
   jwtUtil: {
     generateToken: vi.fn().mockReturnValue('mock_token'),
+    revokeToken: vi.fn(),
+    invalidateUserSessions: vi.fn(),
   },
 }));
 
@@ -226,6 +236,86 @@ describe('AuthService', () => {
 
       // Just test that some error is thrown
       await expect(authService.login('test@example.com', 'Password123!')).rejects.toThrow();
+    });
+  });
+
+  describe('logout', () => {
+    it('should logout user successfully', async () => {
+      // Import jwtUtil to access the mock
+      const { jwtUtil } = await import('../../src/utils/jwt.util');
+
+      // Mock successful token revocation
+      vi.mocked(jwtUtil.revokeToken).mockResolvedValueOnce(undefined);
+
+      // Call the logout method
+      const result = await authService.logout('mock_token');
+
+      // Verify the result
+      expect(result).toHaveProperty('success', true);
+      expect(result).toHaveProperty('data', null);
+      expect(result.message).toBe('Logged out successfully');
+
+      // Verify that revokeToken was called with the correct token
+      expect(jwtUtil.revokeToken).toHaveBeenCalledWith('mock_token');
+    });
+
+    it('should handle errors during logout', async () => {
+      // Import jwtUtil to access the mock
+      const { jwtUtil } = await import('../../src/utils/jwt.util');
+
+      // Mock failed token revocation
+      vi.mocked(jwtUtil.revokeToken).mockRejectedValueOnce(new Error('Failed to revoke token'));
+
+      // Call the logout method
+      const result = await authService.logout('mock_token');
+
+      // Verify the result
+      expect(result).toHaveProperty('success', false);
+      expect(result).toHaveProperty('error', 'Failed to log out');
+
+      // Verify that revokeToken was called with the correct token
+      expect(jwtUtil.revokeToken).toHaveBeenCalledWith('mock_token');
+    });
+  });
+
+  describe('logoutAllDevices', () => {
+    it('should logout from all devices successfully', async () => {
+      // Import jwtUtil to access the mock
+      const { jwtUtil } = await import('../../src/utils/jwt.util');
+
+      // Mock successful session invalidation
+      vi.mocked(jwtUtil.invalidateUserSessions).mockResolvedValueOnce(undefined);
+
+      // Call the logoutAllDevices method
+      const result = await authService.logoutAllDevices('user123');
+
+      // Verify the result
+      expect(result).toHaveProperty('success', true);
+      expect(result).toHaveProperty('data', null);
+      expect(result.message).toBe('Logged out from all devices successfully');
+
+      // Verify that invalidateUserSessions was called with the correct user ID
+      expect(jwtUtil.invalidateUserSessions).toHaveBeenCalledWith('user123');
+    });
+
+    it('should handle errors during logout from all devices', async () => {
+      // Import jwtUtil to access the mock
+      const { jwtUtil } = await import('../../src/utils/jwt.util');
+
+      // Mock failed session invalidation
+      vi.mocked(jwtUtil.invalidateUserSessions).mockRejectedValueOnce(
+        new Error('Failed to invalidate sessions'),
+      );
+
+      // Call the logoutAllDevices method
+      const result = await authService.logoutAllDevices('user123');
+
+      // Verify the result
+      expect(result).toHaveProperty('success', false);
+      expect(result).toHaveProperty('error', 'Failed to log out from all devices');
+
+      // Verify that invalidateUserSessions was called with the correct user ID
+      expect(jwtUtil.invalidateUserSessions).toHaveBeenCalledWith('user123');
     });
   });
 });

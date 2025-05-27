@@ -70,12 +70,14 @@ const envSchema = z.object({
   TEST_RATE_LIMIT_WINDOW_MS: z.string().default('1000'),
   TEST_RATE_LIMIT_MAX: z.string().default('3'),
 
+  CORS_ORIGIN: z.string().default('*'),
+
   // Logging
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly']).default('info'),
   LOG_FILE_PATH: z.string().default('logs/app.log'),
 
   // Encryption
-  ENCRYPTION_KEY: z.string().default('default-encryption-key-change-in-production'),
+  ENCRYPTION_KEY: z.string(),
   ENCRYPTION_ENABLED: z
     .string()
     .transform(val => val === 'true')

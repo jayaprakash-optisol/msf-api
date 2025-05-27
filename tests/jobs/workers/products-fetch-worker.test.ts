@@ -38,13 +38,16 @@ vi.mock('../../../src/utils', () => ({
   },
 }));
 
+// Create a mock for process.env using vi.hoisted to ensure it's available before vi.mock
+const mockEnv = vi.hoisted(() => ({
+  API_USER_NAME: 'test-user',
+  API_PASSWORD: 'test-password',
+}));
+
 // Mock the env
 vi.mock('process', () => {
   return {
-    env: {
-      API_USER_NAME: 'test-user',
-      API_PASSWORD: 'test-password',
-    },
+    env: mockEnv,
   };
 });
 
@@ -93,6 +96,42 @@ describe('ProductsFetchWorker', () => {
 
     it('should get an instance of ProductsFetchService', () => {
       expect(ProductsFetchService.getInstance).toHaveBeenCalled();
+    });
+  });
+
+  describe('getApiCredentials', () => {
+    it('should handle undefined or null API credentials', () => {
+      // Test with original values
+      // @ts-ignore - accessing protected method for testing
+      const originalResult = worker.getApiCredentials();
+      expect(originalResult.login).toBe('test-user');
+      expect(originalResult.password).toBe('test-password');
+
+      // Test with undefined values
+      const originalUserName = mockEnv.API_USER_NAME;
+      const originalPassword = mockEnv.API_PASSWORD;
+
+      // Set to undefined
+      mockEnv.API_USER_NAME = undefined;
+      mockEnv.API_PASSWORD = undefined;
+
+      // @ts-ignore - accessing protected method for testing
+      const undefinedResult = worker.getApiCredentials();
+      expect(undefinedResult.login).toBe('');
+      expect(undefinedResult.password).toBe('');
+
+      // Test with null values
+      mockEnv.API_USER_NAME = null;
+      mockEnv.API_PASSWORD = null;
+
+      // @ts-ignore - accessing protected method for testing
+      const nullResult = worker.getApiCredentials();
+      expect(nullResult.login).toBe('');
+      expect(nullResult.password).toBe('');
+
+      // Restore original values
+      mockEnv.API_USER_NAME = originalUserName;
+      mockEnv.API_PASSWORD = originalPassword;
     });
   });
 

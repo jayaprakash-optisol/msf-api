@@ -12,21 +12,21 @@ import { closePool, initDatabaseConnection } from './config/database.config';
 import env from './config/env.config';
 import { initRedisClient } from './config/redis.config';
 import swaggerSpec from './docs/swagger';
-import { SchedulerService } from './services/scheduler.service';
+import { SchedulerService } from './services';
 import {
   cacheControl,
   contentSecurityPolicy,
   corsOptions,
+  errorHandler,
   frameGuard,
   hsts,
   noSniff,
+  notFoundHandler,
   rateLimiter,
   xssFilter,
 } from './middleware';
-import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import routes from './routes';
-import { closeRedisConnections } from './utils/redis.util';
-import { logger, updateLoggerConfig, stream } from './utils';
+import { closeRedisConnections, logger, stream, updateLoggerConfig } from './utils';
 import { setupBullDashboard } from './utils/bull-dashboard.util';
 
 // Create Express application

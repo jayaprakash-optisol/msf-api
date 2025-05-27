@@ -1,3 +1,4 @@
+import { StatusCodes } from 'http-status-codes';
 import {
   type IAuthService,
   type IUserService,
@@ -7,27 +8,27 @@ import {
   type User,
 } from '../types';
 import {
-  BadRequestError,
-  UnauthorizedError,
   _ok,
-  handleServiceError,
   authResponse,
+  BadRequestError,
+  handleServiceError,
+  jwtUtil,
+  UnauthorizedError,
   userResponse,
 } from '../utils';
-import { jwtUtil } from '../utils/jwt.util';
 
 import { UserService } from './user.service';
 
 export class AuthService implements IAuthService {
-  private readonly userService: IUserService;
   private static instance: AuthService;
+  private readonly userService: IUserService;
 
   private constructor() {
     this.userService = UserService.getInstance();
   }
 
   /**
-   * Get singleton instance
+   * Get a singleton instance
    */
   public static getInstance(): AuthService {
     if (!AuthService.instance) {
@@ -45,10 +46,10 @@ export class AuthService implements IAuthService {
     userData: Omit<NewUser, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<ServiceResponse<Omit<User, 'password'>>> {
     try {
-      // Check if user already exists with the email
+      // Check if the user already exists with the email
       await this.userService.checkEmailAvailability(userData.email);
 
-      // Create new user
+      // Create a new user
       const result = await this.userService.createUser(userData);
 
       if (!result.success || !result.data) {
@@ -98,6 +99,44 @@ export class AuthService implements IAuthService {
       );
     } catch (error) {
       throw handleServiceError(error, authResponse.errors.loginFailed);
+    }
+  }
+
+  /**
+   * Logout user by invalidating their session
+   * @param token The JWT token to invalidate
+   */
+  async logout(token: string): Promise<ServiceResponse<null>> {
+    try {
+      await jwtUtil.revokeToken(token);
+      return _ok(null, 'Logged out successfully');
+    } catch (error) {
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to log out',
+        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+        message: 'Failed to log out'
+      };
+    }
+  }
+
+  /**
+   * Logout from all devices by invalidating all user sessions
+   * @param userId User's ID
+   */
+  async logoutAllDevices(userId: string): Promise<ServiceResponse<null>> {
+    try {
+      await jwtUtil.invalidateUserSessions(userId);
+      return _ok(null, 'Logged out from all devices successfully');
+    } catch (error) {
+      return {
+        success: false,
+        data: null,
+        error: 'Failed to log out from all devices',
+        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+        message: 'Failed to log out from all devices'
+      };
     }
   }
 }

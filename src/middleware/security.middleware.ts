@@ -1,4 +1,5 @@
 import { type NextFunction, type Request, type Response } from 'express';
+import env from '../config/env.config';
 
 const CSP_POLICY =
   "default-src 'self'; script-src 'self'; object-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'";
@@ -12,12 +13,25 @@ export const corsOptions = {
     origin: string | undefined,
     callback: (err: Error | null, allow?: boolean) => void,
   ): void => {
-    callback(null, true);
+    // If CORS_ORIGIN is '*', allow all origins
+    if (env.CORS_ORIGIN === '*') {
+      callback(null, true);
+      return;
+    }
+
+    // Otherwise, check if the origin is in the allowed list
+    const allowedOrigins = env.CORS_ORIGIN.split(',').map(o => o.trim());
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origin ${origin} not allowed by CORS policy`), false);
+    }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   credentials: true,
   maxAge: 86400, // 24 hours
+  optionsSuccessStatus: 200, // For legacy browser support
 };
 
 /**
@@ -46,7 +60,7 @@ export const xssFilter = (_req: Request, res: Response, next: NextFunction): voi
 };
 
 /**
- * Prevents click-jacking by restricting frame embedding
+ * Prevents clickjacking by restricting frame embedding
  */
 export const frameGuard = (_req: Request, res: Response, next: NextFunction): void => {
   res.setHeader('X-Frame-Options', 'DENY');
@@ -54,7 +68,7 @@ export const frameGuard = (_req: Request, res: Response, next: NextFunction): vo
 };
 
 /**
- * Set Strict-Transport-Security header to enforce HTTPS
+ * Set a Strict-Transport-Security header to enforce HTTPS
  */
 export const hsts = (_req: Request, res: Response, next: NextFunction): void => {
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
