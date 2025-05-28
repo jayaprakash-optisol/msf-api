@@ -20,9 +20,10 @@ export const createRedisClient = (options: Partial<RedisOptions> = {}): Redis =>
     ...options,
   });
 
-  // Handle Redis connection errors
+  // Handle Redis connection errors - log once and close
   client.on('error', (err: Error) => {
     logger.error('Redis client error:', err);
+    client.quit().catch(e => logger.error('Error closing Redis connection:', e));
   });
 
   // Add to tracked clients
