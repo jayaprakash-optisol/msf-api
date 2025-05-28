@@ -38,7 +38,6 @@ export class SyncService implements ISyncService {
     updatedAfter: Date,
   ): Promise<T[]> {
     const table = this.tableMap[tableName];
-    console.log('updatedAfter', updatedAfter);
     const result = await db
       .select()
       .from(table)
