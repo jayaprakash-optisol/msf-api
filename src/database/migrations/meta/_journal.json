@@ -43,6 +43,20 @@
       "when": 1748354823800,
       "tag": "0005_good_wild_child",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1748365695016,
+      "tag": "0006_perfect_hellcat",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1748365736352,
+      "tag": "0007_early_maelstrom",
+      "breakpoints": true
     }
   ]
 }

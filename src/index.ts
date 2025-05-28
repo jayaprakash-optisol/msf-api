@@ -39,8 +39,6 @@ export async function configureApp(): Promise<void> {
   await env.initialize();
   const config = env.getConfig();
 
-  // Custom HTTP request logging middleware
-
   // Update logger with loaded environment config
   updateLoggerConfig(config.LOG_LEVEL, config.LOG_FILE_PATH);
 

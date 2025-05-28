@@ -7,18 +7,24 @@ export abstract class BaseWorker {
   protected worker: Worker;
   protected queueName: string;
 
+  // Helper method to get TLS config for testing purposes
+  protected static getTlsConfig(sslEnabled: boolean): { rejectUnauthorized: boolean } | undefined {
+    return sslEnabled
+      ? {
+          rejectUnauthorized: false,
+        }
+      : undefined;
+  }
+
   protected constructor(queueName: string, concurrency: number = 2) {
     this.queueName = queueName;
+    const sslEnabled = getEnv('REDIS_SSL_ENABLED');
     this.worker = new Worker(queueName, async job => this.processJob(job), {
       connection: {
         host: getEnv('REDIS_HOST'),
         port: Number(getEnv('REDIS_PORT')),
         password: getEnv('REDIS_PASSWORD'),
-        tls: getEnv('REDIS_SSL_ENABLED')
-          ? {
-              rejectUnauthorized: false,
-            }
-          : undefined,
+        tls: BaseWorker.getTlsConfig(!!sslEnabled),
       },
       concurrency,
     });

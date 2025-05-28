@@ -126,10 +126,17 @@ class Environment {
       return;
     }
 
-    if (process.env.ENCRYPTION_ENABLED === 'true') {
+    if (process.env.AZURE_KEYVAULT_ENABLED === 'true') {
       try {
         const secrets = await azureKeyVault.getAllSecrets();
-        Object.assign(process.env, secrets);
+        // Convert hyphenated secret names back to underscore env var names
+        const convertedSecrets: Record<string, string> = {};
+        for (const [secretName, value] of Object.entries(secrets)) {
+          const envVarName = secretName.replace(/-/g, '_').toUpperCase();
+          convertedSecrets[envVarName] = value;
+        }
+        // Merge with existing process.env, giving priority to Key Vault secrets
+        Object.assign(process.env, convertedSecrets);
         this.config = envSchema.parse(process.env);
         logger.info('✅ Azure Key Vault secrets loaded successfully');
       } catch (error) {

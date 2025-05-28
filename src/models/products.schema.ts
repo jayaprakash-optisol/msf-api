@@ -1,4 +1,4 @@
-import { pgTable, timestamp, varchar, uuid, json } from 'drizzle-orm/pg-core';
+import { pgTable, timestamp, varchar, uuid, json, jsonb } from 'drizzle-orm/pg-core';
 
 export const products = pgTable('products', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -8,6 +8,7 @@ export const products = pgTable('products', {
   type: varchar('type'),
   state: varchar('state'),
   freeCode: varchar('free_code'),
+  formerCodes: jsonb('former_codes'),
   standardizationLevel: varchar('standardization_level'),
   labels: json('labels'),
   sourceSystem: varchar('source_system'),

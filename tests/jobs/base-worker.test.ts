@@ -7,11 +7,7 @@ import { getEnv } from '../../src/utils/config.util';
 
 // Mock getEnv function
 vi.mock('../../src/utils/config.util', () => ({
-  getEnv: vi.fn((key: string) => {
-    if (key === 'REDIS_HOST') return 'localhost';
-    if (key === 'REDIS_PORT') return '6379';
-    return undefined;
-  }),
+  getEnv: vi.fn(),
   isDevelopment: vi.fn().mockReturnValue(true),
   isProduction: vi.fn().mockReturnValue(false),
   isTest: vi.fn().mockReturnValue(false),
@@ -64,8 +60,34 @@ describe('BaseWorker', () => {
   let mockWorker: any;
   let mockProcessJob: any;
 
+  // Add a test for the static getTlsConfig method
+  describe('getTlsConfig', () => {
+    it('should return a config object with rejectUnauthorized: false when SSL is enabled', () => {
+      // Access the protected static method using type assertion
+      const getTlsConfig = (BaseWorker as any).getTlsConfig;
+      const result = getTlsConfig(true);
+      expect(result).toEqual({ rejectUnauthorized: false });
+    });
+
+    it('should return undefined when SSL is disabled', () => {
+      // Access the protected static method using type assertion
+      const getTlsConfig = (BaseWorker as any).getTlsConfig;
+      const result = getTlsConfig(false);
+      expect(result).toBeUndefined();
+    });
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Set up default mock implementation for getEnv
+    (getEnv as MockedFunction<any>).mockImplementation((key: string) => {
+      if (key === 'REDIS_HOST') return 'localhost';
+      if (key === 'REDIS_PORT') return '6379';
+      if (key === 'REDIS_PASSWORD') return 'password';
+      if (key === 'REDIS_SSL_ENABLED') return false; // Default to false
+      return undefined;
+    });
 
     // Create the mock worker before creating the TestWorker
     mockWorker = {
@@ -85,19 +107,39 @@ describe('BaseWorker', () => {
   });
 
   describe('constructor', () => {
-    it('should initialize the worker with the correct options', () => {
-      // Instead of checking the exact values, just verify the structure
+    it('should initialize the worker with the correct options when SSL is disabled', () => {
+      // Clear previous calls to Worker constructor
+      (Worker as unknown as MockedFunction<any>).mockClear();
+
+      // Ensure getEnv returns false for REDIS_SSL_ENABLED
+      (getEnv as MockedFunction<any>).mockImplementation((key: string) => {
+        if (key === 'REDIS_HOST') return 'localhost';
+        if (key === 'REDIS_PORT') return '6379';
+        if (key === 'REDIS_PASSWORD') return 'password';
+        if (key === 'REDIS_SSL_ENABLED') return false; // Explicitly disable SSL
+        return undefined;
+      });
+
+      // Create a new worker instance with SSL disabled
+      const noSslWorker = new TestWorker();
+
+      // Verify the structure with explicit check for tls: undefined
       expect(Worker).toHaveBeenCalledWith(
         'test-queue',
         expect.any(Function),
-        {
-          connection: {
+        expect.objectContaining({
+          connection: expect.objectContaining({
             host: 'localhost',
             port: 6379,
-          },
+            password: 'password',
+            tls: undefined, // Explicitly verify tls is undefined when SSL is disabled
+          }),
           concurrency: 2, // Default concurrency
-        }
+        })
       );
+
+      // Verify that getEnv was called with 'REDIS_SSL_ENABLED'
+      expect(getEnv).toHaveBeenCalledWith('REDIS_SSL_ENABLED');
     });
 
     it('should initialize the worker with custom concurrency', () => {
@@ -111,6 +153,43 @@ describe('BaseWorker', () => {
           concurrency: customConcurrency,
         }),
       );
+    });
+
+    it('should initialize the worker with TLS configuration when SSL is enabled', () => {
+      // Clear previous calls to Worker constructor
+      (Worker as unknown as MockedFunction<any>).mockClear();
+
+      // Mock getEnv to return true for REDIS_SSL_ENABLED
+      (getEnv as MockedFunction<any>).mockImplementation((key: string) => {
+        if (key === 'REDIS_HOST') return 'localhost';
+        if (key === 'REDIS_PORT') return '6379';
+        if (key === 'REDIS_PASSWORD') return 'password';
+        if (key === 'REDIS_SSL_ENABLED') return true; // Enable SSL for this test
+        return undefined;
+      });
+
+      // Create a new worker instance with SSL enabled
+      const sslWorker = new TestWorker();
+
+      // Verify that the TLS configuration is correctly set
+      expect(Worker).toHaveBeenCalledWith(
+        'test-queue',
+        expect.any(Function),
+        expect.objectContaining({
+          connection: expect.objectContaining({
+            host: 'localhost',
+            port: 6379,
+            password: 'password',
+            tls: {
+              rejectUnauthorized: false,
+            },
+          }),
+          concurrency: 2,
+        })
+      );
+
+      // Verify that getEnv was called with 'REDIS_SSL_ENABLED'
+      expect(getEnv).toHaveBeenCalledWith('REDIS_SSL_ENABLED');
     });
 
     it('should set up event listeners', () => {
