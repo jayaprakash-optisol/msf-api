@@ -22,6 +22,6 @@ export class ProductsFetchQueue extends BaseQueue {
 
     await this.addRepeatingJob('fetch-products', jobData, getEnv('PRODUCT_SYNC_INTERVAL'));
 
-    logger.info('✅ Scheduled products fetch job to run every 1 hour');
+    logger.info('✅ Scheduled products fetch job');
   }
 }

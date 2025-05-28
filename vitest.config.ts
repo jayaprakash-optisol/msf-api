@@ -9,6 +9,8 @@ export default defineConfig({
     environment: 'node',
     // Include all test files
     include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    // Load test environment setup
+    setupFiles: ['./tests/test-env.ts'],
     // Configure mock usage
     mockReset: true,
     // Coverage configuration
@@ -39,10 +41,26 @@ export default defineConfig({
         lines: 85,
       },
     },
-    reporters: ['default', ['vitest-sonar-reporter', { outputFile: 'coverage/test-report.xml' }]],
     // Resolver for module resolution
     alias: {
       '@': resolve(__dirname, './src'),
+    },
+    // Disable console output during tests
+    silent: true,
+
+    // Control output verbosity (based on deprecation warning)
+    reporters: [
+      [
+        'default',
+        {
+          summary: false,
+        },
+      ],
+    ],
+
+    // You can also silence specific console methods
+    onConsoleLog: log => {
+      return false; // returning false prevents the log from being displayed
     },
   },
 });

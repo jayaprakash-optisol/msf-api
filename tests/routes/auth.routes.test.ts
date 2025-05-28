@@ -5,6 +5,37 @@ import authRoutes from '../../src/routes/auth.routes';
 import { mockLoginRequest, mockRegisterRequest } from '../mocks';
 import { StatusCodes } from 'http-status-codes';
 
+// Mock Redis client to prevent connection issues
+vi.mock('../../src/config/redis.config', () => ({
+  getRedisClient: vi.fn(() => ({
+    get: vi.fn().mockResolvedValue(null),
+    setex: vi.fn().mockResolvedValue('OK'),
+    del: vi.fn().mockResolvedValue(1),
+    quit: vi.fn().mockResolvedValue('OK'),
+  })),
+  initRedisClient: vi.fn(),
+  closeRedisClient: vi.fn(),
+}));
+
+// Mock utils to prevent Redis connection
+vi.mock('../../src/utils', () => ({
+  logger: {
+    info: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+  getEnv: vi.fn().mockImplementation((key: string) => {
+    if (key === 'REDIS_HOST') return 'localhost';
+    if (key === 'REDIS_PORT') return '6379';
+    if (key === 'REDIS_PASSWORD') return undefined;
+    if (key === 'REDIS_SSL_ENABLED') return false;
+    return undefined;
+  }),
+  isDevelopment: vi.fn().mockReturnValue(true),
+  isProduction: vi.fn().mockReturnValue(false),
+  isTest: vi.fn().mockReturnValue(true),
+}));
+
 // Mock the auth controller methods
 vi.mock('../../src/controllers/auth.controller', () => {
   return {

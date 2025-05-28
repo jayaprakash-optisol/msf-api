@@ -439,7 +439,7 @@ describe('AuthController', () => {
   describe('logoutAllDevices', () => {
     it('should logout from all devices successfully', async () => {
       // Setup mocks with user object
-      const req = createMockRequest();
+      const req: any = createMockRequest();
       req.user = { id: 'user123', email: 'test@example.com', role: 'user' };
       const { res, jsonSpy } = createMockResponse();
       const next = createMockNext();
@@ -485,7 +485,7 @@ describe('AuthController', () => {
 
     it('should throw BadRequestError if logout fails', async () => {
       // Setup mocks with user object
-      const req = createMockRequest();
+      const req: any = createMockRequest();
       req.user = { id: 'user123', email: 'test@example.com', role: 'user' };
       const { res } = createMockResponse();
       const next = createMockNext();
@@ -506,7 +506,7 @@ describe('AuthController', () => {
 
     it('should throw default BadRequestError if error is undefined', async () => {
       // Setup mocks with user object
-      const req = createMockRequest();
+      const req: any = createMockRequest();
       req.user = { id: 'user123', email: 'test@example.com', role: 'user' };
       const { res } = createMockResponse();
       const next = createMockNext();
@@ -527,7 +527,7 @@ describe('AuthController', () => {
 
     it('should pass unexpected errors to next middleware', async () => {
       // Setup mocks with user object
-      const req = createMockRequest();
+      const req: any = createMockRequest();
       req.user = { id: 'user123', email: 'test@example.com', role: 'user' };
       const { res } = createMockResponse();
       const next = createMockNext();
@@ -547,7 +547,7 @@ describe('AuthController', () => {
   describe('getCurrentUser', () => {
     it('should return current user information successfully', async () => {
       // Setup mocks with user object
-      const req = createMockRequest();
+      const req: any = createMockRequest();
       req.user = { id: '123', email: 'test@example.com', role: 'user' };
       const { res, jsonSpy } = createMockResponse();
       const next = createMockNext();
@@ -585,7 +585,7 @@ describe('AuthController', () => {
 
     it('should pass unexpected errors to next middleware', async () => {
       // Setup mocks with user object that will cause an error
-      const req = createMockRequest();
+      const req: any = createMockRequest();
       req.user = { id: '123', email: 'test@example.com', role: 'user' };
       const { res } = createMockResponse();
       const next = createMockNext();
@@ -606,7 +606,7 @@ describe('AuthController', () => {
   describe('refreshToken', () => {
     it('should refresh token successfully', async () => {
       // Setup mocks with user object
-      const req = createMockRequest();
+      const req: any = createMockRequest();
       req.user = { id: '123', email: 'test@example.com', role: 'user' };
       const { res, jsonSpy } = createMockResponse();
       const next = createMockNext();
@@ -652,7 +652,7 @@ describe('AuthController', () => {
 
     it('should pass unexpected errors to next middleware', async () => {
       // Setup mocks with user object
-      const req = createMockRequest();
+      const req: any = createMockRequest();
       req.user = { id: '123', email: 'test@example.com', role: 'user' };
       const { res } = createMockResponse();
       const next = createMockNext();

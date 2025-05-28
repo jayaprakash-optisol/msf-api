@@ -1,4 +1,4 @@
-import { gt } from 'drizzle-orm';
+import { desc, gt } from 'drizzle-orm';
 import { db } from '../config/database.config';
 import { ISyncService, SyncTableName } from '../types';
 import { tasks, parcels, parcelItems, products, shipments, users, guests } from '../models';
@@ -38,7 +38,12 @@ export class SyncService implements ISyncService {
     updatedAfter: Date,
   ): Promise<T[]> {
     const table = this.tableMap[tableName];
-    const result = await db.select().from(table).where(gt(table.updatedAt, updatedAfter));
+    console.log('updatedAfter', updatedAfter);
+    const result = await db
+      .select()
+      .from(table)
+      .where(gt(table.updatedAt, updatedAfter))
+      .orderBy(desc(table.updatedAt));
     return result as T[];
   }
 }

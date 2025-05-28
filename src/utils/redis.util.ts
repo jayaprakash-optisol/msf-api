@@ -68,3 +68,20 @@ export const closeRedisConnections = async (): Promise<void> => {
   await Promise.all(closePromises);
   logger.info('All Redis connections closed');
 };
+
+/**
+ * Clears the entire Redis database.
+ * Use with caution, especially in production.
+ */
+export const clearRedisDatabase = async (): Promise<void> => {
+  const client = createRedisClient();
+  try {
+    await client.flushdb();
+    logger.info('Redis database cleared successfully.');
+  } catch (error) {
+    logger.error('Error clearing Redis database:', error);
+    throw error; // Re-throw the error to be handled by the caller
+  } finally {
+    await client.quit();
+  }
+};

@@ -61,19 +61,12 @@ describe('BaseWorker', () => {
   let mockProcessJob: any;
 
   // Add a test for the static getTlsConfig method
-  describe('getTlsConfig', () => {
-    it('should return a config object with rejectUnauthorized: false when SSL is enabled', () => {
+  describe('TLS configuration methods', () => {
+    it('should return a config object with rejectUnauthorized: false when using SSL config', () => {
       // Access the protected static method using type assertion
-      const getTlsConfig = (BaseWorker as any).getTlsConfig;
-      const result = getTlsConfig(true);
+      const getSslTlsConfig = (BaseWorker as any).getSslTlsConfig;
+      const result = getSslTlsConfig();
       expect(result).toEqual({ rejectUnauthorized: false });
-    });
-
-    it('should return undefined when SSL is disabled', () => {
-      // Access the protected static method using type assertion
-      const getTlsConfig = (BaseWorker as any).getTlsConfig;
-      const result = getTlsConfig(false);
-      expect(result).toBeUndefined();
     });
   });
 
@@ -135,7 +128,7 @@ describe('BaseWorker', () => {
             tls: undefined, // Explicitly verify tls is undefined when SSL is disabled
           }),
           concurrency: 2, // Default concurrency
-        })
+        }),
       );
 
       // Verify that getEnv was called with 'REDIS_SSL_ENABLED'
@@ -185,7 +178,7 @@ describe('BaseWorker', () => {
             },
           }),
           concurrency: 2,
-        })
+        }),
       );
 
       // Verify that getEnv was called with 'REDIS_SSL_ENABLED'

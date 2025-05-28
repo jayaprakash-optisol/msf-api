@@ -9,7 +9,16 @@ import { logger } from '../../../src/utils';
 // Mock the BaseWorker class
 vi.mock('../../../src/jobs/base-worker', () => {
   return {
-    BaseWorker: vi.fn().mockImplementation(() => ({})),
+    BaseWorker: vi.fn().mockImplementation((queueName: string, concurrency: number = 2) => ({
+      queueName,
+      concurrency,
+      worker: {
+        on: vi.fn(),
+        close: vi.fn(),
+      },
+      setupEventListeners: vi.fn(),
+      close: vi.fn(),
+    })),
   };
 });
 
@@ -45,6 +54,10 @@ vi.mock('../../../src/utils', () => ({
   getEnv: vi.fn().mockImplementation((key: string) => {
     if (key === 'API_USER_NAME') return mockConfig.API_USER_NAME;
     if (key === 'API_PASSWORD') return mockConfig.API_PASSWORD;
+    if (key === 'REDIS_HOST') return 'localhost';
+    if (key === 'REDIS_PORT') return '6379';
+    if (key === 'REDIS_PASSWORD') return undefined;
+    if (key === 'REDIS_SSL_ENABLED') return false;
     return undefined;
   }),
 }));
@@ -75,7 +88,7 @@ describe('ProductsFetchWorker', () => {
     };
 
     // Update the mock to return our instance
-    (ProductsFetchService.getInstance as jest.Mock).mockReturnValue(mockProductsFetchService);
+    (ProductsFetchService.getInstance as any).mockReturnValue(mockProductsFetchService);
 
     // Create the worker after setting up the mock
     worker = new ProductsFetchWorker();
@@ -125,8 +138,8 @@ describe('ProductsFetchWorker', () => {
       const originalPassword = mockConfig.API_PASSWORD;
 
       // Set to undefined
-      mockConfig.API_USER_NAME = undefined;
-      mockConfig.API_PASSWORD = undefined;
+      mockConfig.API_USER_NAME = undefined as any;
+      mockConfig.API_PASSWORD = undefined as any;
 
       // @ts-ignore - accessing protected method for testing
       const undefinedResult = worker.getApiCredentials();
@@ -134,8 +147,8 @@ describe('ProductsFetchWorker', () => {
       expect(undefinedResult.password).toBe('');
 
       // Test with null values
-      mockConfig.API_USER_NAME = null;
-      mockConfig.API_PASSWORD = null;
+      mockConfig.API_USER_NAME = null as any;
+      mockConfig.API_PASSWORD = null as any;
 
       // @ts-ignore - accessing protected method for testing
       const nullResult = worker.getApiCredentials();
@@ -163,7 +176,9 @@ describe('ProductsFetchWorker', () => {
       await worker.processJob(mockJob as Job<ProductsFetchJobData>);
 
       // Verify that the job methods were called
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Processing products fetch job'));
+      expect(mockJob.log).toHaveBeenCalledWith(
+        expect.stringContaining('Processing products fetch job'),
+      );
       expect(mockJob.updateProgress).toHaveBeenCalledWith(10);
       expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Job data:'));
       expect(mockJob.updateProgress).toHaveBeenCalledWith(30);
@@ -179,7 +194,9 @@ describe('ProductsFetchWorker', () => {
       });
 
       expect(mockJob.updateProgress).toHaveBeenCalledWith(50);
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Successfully fetched 2 products'));
+      expect(mockJob.log).toHaveBeenCalledWith(
+        expect.stringContaining('Successfully fetched 2 products'),
+      );
 
       // Verify that insertProductsData was called with the correct parameters
       expect(mockProductsFetchService.insertProductsData).toHaveBeenCalledWith([
@@ -187,9 +204,13 @@ describe('ProductsFetchWorker', () => {
         { id: 2 },
       ]);
 
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Successfully inserted 2 products'));
+      expect(mockJob.log).toHaveBeenCalledWith(
+        expect.stringContaining('Successfully inserted 2 products'),
+      );
       expect(mockJob.updateProgress).toHaveBeenCalledWith(100);
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Products fetch job completed successfully'));
+      expect(mockJob.log).toHaveBeenCalledWith(
+        expect.stringContaining('Products fetch job completed successfully'),
+      );
     });
 
     it('should handle case when no products are returned', async () => {
@@ -206,7 +227,9 @@ describe('ProductsFetchWorker', () => {
       await worker.processJob(mockJob as Job<ProductsFetchJobData>);
 
       // Verify that the job methods were called
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Processing products fetch job'));
+      expect(mockJob.log).toHaveBeenCalledWith(
+        expect.stringContaining('Processing products fetch job'),
+      );
       expect(mockJob.updateProgress).toHaveBeenCalledWith(10);
       expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Job data:'));
       expect(mockJob.updateProgress).toHaveBeenCalledWith(30);
@@ -216,14 +239,18 @@ describe('ProductsFetchWorker', () => {
       expect(mockProductsFetchService.fetchProducts).toHaveBeenCalled();
 
       expect(mockJob.updateProgress).toHaveBeenCalledWith(50);
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Successfully fetched 0 products'));
+      expect(mockJob.log).toHaveBeenCalledWith(
+        expect.stringContaining('Successfully fetched 0 products'),
+      );
 
       // Verify that insertProductsData was not called
       expect(mockProductsFetchService.insertProductsData).not.toHaveBeenCalled();
 
       expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('No products to insert'));
       expect(mockJob.updateProgress).toHaveBeenCalledWith(100);
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Products fetch job completed successfully'));
+      expect(mockJob.log).toHaveBeenCalledWith(
+        expect.stringContaining('Products fetch job completed successfully'),
+      );
     });
 
     it('should handle errors during job processing', async () => {
@@ -234,19 +261,25 @@ describe('ProductsFetchWorker', () => {
       // Call the processJob method and expect it to throw
       await expect(
         // @ts-ignore - accessing protected method for testing
-        worker.processJob(mockJob as Job<ProductsFetchJobData>)
+        worker.processJob(mockJob as Job<ProductsFetchJobData>),
       ).rejects.toThrow('API error');
 
       // Verify that the job methods were called
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Processing products fetch job'));
+      expect(mockJob.log).toHaveBeenCalledWith(
+        expect.stringContaining('Processing products fetch job'),
+      );
       expect(mockJob.updateProgress).toHaveBeenCalledWith(10);
       expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Job data:'));
       expect(mockJob.updateProgress).toHaveBeenCalledWith(30);
       expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Starting products fetch'));
 
       // Verify that the error was logged
-      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Error processing products fetch job'));
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Error processing products fetch job'));
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Error processing products fetch job'),
+      );
+      expect(mockJob.log).toHaveBeenCalledWith(
+        expect.stringContaining('Error processing products fetch job'),
+      );
     });
 
     it('should handle missing API credentials', async () => {
@@ -255,7 +288,10 @@ describe('ProductsFetchWorker', () => {
 
       // Create a subclass that overrides getApiCredentials to return controlled values
       class TestWorker extends ProductsFetchWorker {
-        constructor(private loginValue: string | undefined, private passwordValue: string | undefined) {
+        constructor(
+          private loginValue: string | undefined,
+          private passwordValue: string | undefined,
+        ) {
           super();
         }
 
@@ -263,7 +299,7 @@ describe('ProductsFetchWorker', () => {
           // This directly tests the nullish coalescing operator
           return {
             login: this.loginValue ?? '',
-            password: this.passwordValue ?? ''
+            password: this.passwordValue ?? '',
           };
         }
       }
@@ -307,7 +343,9 @@ describe('ProductsFetchWorker', () => {
       await worker.processJob(mockJob as Job<ProductsFetchJobData>);
 
       // Verify that the job methods were called
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Processing products fetch job'));
+      expect(mockJob.log).toHaveBeenCalledWith(
+        expect.stringContaining('Processing products fetch job'),
+      );
       expect(mockJob.updateProgress).toHaveBeenCalledWith(10);
       expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Job data:'));
       expect(mockJob.updateProgress).toHaveBeenCalledWith(30);
@@ -317,14 +355,18 @@ describe('ProductsFetchWorker', () => {
       expect(mockProductsFetchService.fetchProducts).toHaveBeenCalled();
 
       expect(mockJob.updateProgress).toHaveBeenCalledWith(50);
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Successfully fetched 0 products'));
+      expect(mockJob.log).toHaveBeenCalledWith(
+        expect.stringContaining('Successfully fetched 0 products'),
+      );
 
       // Verify that insertProductsData was not called
       expect(mockProductsFetchService.insertProductsData).not.toHaveBeenCalled();
 
       expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('No products to insert'));
       expect(mockJob.updateProgress).toHaveBeenCalledWith(100);
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Products fetch job completed successfully'));
+      expect(mockJob.log).toHaveBeenCalledWith(
+        expect.stringContaining('Products fetch job completed successfully'),
+      );
     });
   });
 });

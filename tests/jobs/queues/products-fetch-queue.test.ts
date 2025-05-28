@@ -1,8 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach, MockedFunction } from 'vitest';
-import {
-  ProductsFetchQueue,
-  ProductsFetchJobData,
-} from '../../../src/jobs';
+import { ProductsFetchQueue, ProductsFetchJobData } from '../../../src/jobs';
 import { BaseQueue } from '../../../src/jobs';
 import { logger, getEnv } from '../../../src/utils';
 
@@ -77,9 +74,7 @@ describe('ProductsFetchQueue', () => {
     it('should log a message after scheduling the job', async () => {
       await queue.scheduleProductsFetch();
 
-      expect(logger.info).toHaveBeenCalledWith(
-        '✅ Scheduled products fetch job to run every 1 hour',
-      );
+      expect(logger.info).toHaveBeenCalledWith('✅ Scheduled products fetch job');
     });
   });
 });
