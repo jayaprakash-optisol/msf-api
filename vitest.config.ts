@@ -48,17 +48,13 @@ export default defineConfig({
     // Disable console output during tests
     silent: true,
 
-    // Control output verbosity (based on deprecation warning)
+    // Configure reporters - minimal console output + SonarQube report
     reporters: [
-      [
-        'default',
-        {
-          summary: false,
-        },
-      ],
+      ['default', { summary: false }],
+      ['vitest-sonar-reporter', { outputFile: 'coverage/test-report.xml' }],
     ],
 
-    // You can also silence specific console methods
+    // Silence specific console methods
     onConsoleLog: log => {
       return false; // returning false prevents the log from being displayed
     },
