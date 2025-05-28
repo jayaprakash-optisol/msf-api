@@ -6,3 +6,4 @@ export * from './common.interface';
 export * from './guest.interface';
 export * from './product.interfaces';
 export * from './scheduler.interface';
+export * from './sync.interface';

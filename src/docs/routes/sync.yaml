@@ -1,0 +1,123 @@
+paths:
+  /sync:
+    get:
+      tags:
+        - Sync
+      summary: Sync table data
+      description: Fetch all records from a specified table that have been updated after a given date
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: tableName
+          required: true
+          schema:
+            type: string
+            enum:
+              - tasks
+              - parcels
+              - parcelItems
+              - products
+              - shipments
+              - users
+              - guests
+          description: Name of the table to sync
+          example: users
+        - in: query
+          name: lastSync
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: ISO 8601 date-time string. Only records updated after this date will be returned
+          example: '2024-01-01T00:00:00.000Z'
+      responses:
+        '200':
+          description: Sync data retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Found 5 users records updated after 2024-01-01T00:00:00.000Z'
+                  data:
+                    type: array
+                    items:
+                      oneOf:
+                        - $ref: '#/components/schemas/User'
+                        - $ref: '#/components/schemas/Guest'
+                        - $ref: '#/components/schemas/Product'
+                        - $ref: '#/components/schemas/Task'
+                        - $ref: '#/components/schemas/Parcel'
+                        - $ref: '#/components/schemas/ParcelItem'
+                        - $ref: '#/components/schemas/Shipment'
+                    description: Array of records from the specified table
+              examples:
+                users:
+                  summary: Users sync response
+                  value:
+                    success: true
+                    message: 'Found 2 users records updated after 2024-01-01T00:00:00.000Z'
+                    data:
+                      - id: '123e4567-e89b-12d3-a456-426614174000'
+                        email: 'user@example.com'
+                        firstName: 'John'
+                        lastName: 'Doe'
+                        role: 'User'
+                        isActive: true
+                        createdAt: '2024-01-15T10:30:00.000Z'
+                        updatedAt: '2024-01-20T14:45:00.000Z'
+                      - id: '123e4567-e89b-12d3-a456-426614174001'
+                        email: 'jane@example.com'
+                        firstName: 'Jane'
+                        lastName: 'Smith'
+                        role: 'Admin'
+                        isActive: true
+                        createdAt: '2024-01-16T09:15:00.000Z'
+                        updatedAt: '2024-01-21T11:20:00.000Z'
+                products:
+                  summary: Products sync response
+                  value:
+                    success: true
+                    message: 'Found 3 products records updated after 2024-01-01T00:00:00.000Z'
+                    data:
+                      - id: 'prod-123'
+                        name: 'Sample Product'
+                        description: 'A sample product description'
+                        price: 29.99
+                        isActive: true
+                        createdAt: '2024-01-10T08:00:00.000Z'
+                        updatedAt: '2024-01-18T16:30:00.000Z'
+        '400':
+          description: Bad request - Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidTableName:
+                  summary: Invalid table name
+                  value:
+                    success: false
+                    error: 'Invalid tableName. Must be one of: tasks, parcels, parcelItems, products, shipments, users, guests'
+                invalidDate:
+                  summary: Invalid date format
+                  value:
+                    success: false
+                    error: 'Invalid lastSync date format. Must be a valid ISO 8601 date-time string'
+                missingParameters:
+                  summary: Missing required parameters
+                  value:
+                    success: false
+                    error: 'Missing required parameters: tableName and lastSync'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/ServerError'

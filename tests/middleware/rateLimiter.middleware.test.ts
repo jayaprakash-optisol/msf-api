@@ -74,16 +74,16 @@ vi.mock('../../src/config/env.config', () => {
       getConfig: vi.fn(() => mockConfig),
       initialize: vi.fn().mockResolvedValue(undefined),
       getInstance: vi.fn(() => ({
-        getConfig: vi.fn(() => mockConfig)
+        getConfig: vi.fn(() => mockConfig),
       })),
-    }
+    },
   };
 });
 
 // Mock utils module with getEnv and isDevelopment
 vi.mock('../../src/utils', () => {
   return {
-    getEnv: vi.fn().mockImplementation((key) => {
+    getEnv: vi.fn().mockImplementation(key => {
       if (key === 'RATE_LIMIT_ENABLED') return true;
       if (key === 'NODE_ENV') return 'development';
       if (key === 'TEST_RATE_LIMIT_WINDOW_MS') return '1000';
@@ -121,7 +121,7 @@ describe('Rate Limiter Middleware', () => {
     const originalMockGetEnv = vi.mocked(getEnv);
     vi.mocked(getEnv).mockImplementation((key: string) => {
       if (key === 'RATE_LIMIT_ENABLED') return false;
-      return originalMockGetEnv(key);
+      return originalMockGetEnv(key as any);
     });
 
     const req = { ip: '127.0.0.1', path: '/api/v1/users' } as Request;
@@ -168,7 +168,7 @@ describe('Rate Limiter Middleware', () => {
     const originalMockGetEnv = vi.mocked(getEnv);
     vi.mocked(getEnv).mockImplementation((key: string) => {
       if (key === 'RATE_LIMIT_ENABLED') return true;
-      return originalMockGetEnv(key);
+      return originalMockGetEnv(key as any);
     });
 
     const req = { ip: '127.0.0.1', path: '/api/v1/users' } as Request;
@@ -213,14 +213,14 @@ describe('Rate Limiter Middleware', () => {
     // Test with development environment
     vi.mocked(getEnv).mockImplementation((key: string) => {
       if (key === 'NODE_ENV') return 'development';
-      return originalMockGetEnv(key);
+      return originalMockGetEnv(key as any);
     });
     expect(() => rateLimiter()).not.toThrow();
 
     // Test with production environment
     vi.mocked(getEnv).mockImplementation((key: string) => {
       if (key === 'NODE_ENV') return 'production';
-      return originalMockGetEnv(key);
+      return originalMockGetEnv(key as any);
     });
     expect(() => rateLimiter()).not.toThrow();
 
