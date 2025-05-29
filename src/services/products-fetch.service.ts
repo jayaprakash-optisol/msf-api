@@ -33,7 +33,7 @@ export class ProductsFetchService implements IProductsFetchService {
    */
   async insertProductsData(productData: ApiProductItem[]): Promise<number> {
     try {
-      if (!productData || productData.length === 0) {
+      if (!productData.length) {
         return 0;
       }
 
@@ -51,9 +51,27 @@ export class ProductsFetchService implements IProductsFetchService {
         updatedAt: new Date(),
       }));
 
-      await db.insert(products).values(mappedProducts);
+      return await db.transaction(async tx => {
+        await tx
+          .insert(products)
+          .values(mappedProducts)
+          .onConflictDoUpdate({
+            target: products.productCode,
+            set: {
+              unidataId: products.unidataId,
+              productDescription: products.productDescription,
+              type: products.type,
+              state: products.state,
+              standardizationLevel: products.standardizationLevel,
+              freeCode: products.freeCode,
+              formerCodes: products.formerCodes,
+              labels: products.labels,
+              updatedAt: new Date(),
+            },
+          });
 
-      return mappedProducts.length;
+        return mappedProducts.length;
+      });
     } catch (error) {
       throw handleServiceError(
         error,
@@ -79,6 +97,7 @@ export class ProductsFetchService implements IProductsFetchService {
       url.searchParams.append('mode', options.mode.toString());
       url.searchParams.append('size', options.size.toString());
       url.searchParams.append('filter', options.filter);
+      url.searchParams.append('page', options.page.toString());
 
       const response = await fetch(url.toString(), {
         method: 'GET',

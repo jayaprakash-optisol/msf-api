@@ -520,6 +520,36 @@ const swaggerDefinition = {
           },
         },
       },
+      Device: {
+        type: 'object',
+        required: ['id', 'deviceId', 'createdAt', 'updatedAt'],
+        properties: {
+          id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Device ID',
+          },
+          deviceId: {
+            type: 'string',
+            description: 'Unique device identifier',
+          },
+          location: {
+            type: 'string',
+            description: 'Physical location of the device',
+            nullable: true,
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Device creation timestamp',
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Device last update timestamp',
+          },
+        },
+      },
     },
     responses: {
       UnauthorizedError: {
@@ -611,6 +641,10 @@ const swaggerDefinition = {
     {
       name: 'Sync',
       description: 'Sync related endpoints',
+    },
+    {
+      name: 'Devices',
+      description: 'Device management and API key endpoints',
     },
   ],
 };

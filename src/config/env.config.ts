@@ -17,7 +17,7 @@ const envSchema = z.object({
   DB_USER: z.string(),
   DB_PASSWORD: z.string(),
   DB_HOST: z.string(),
-  DB_PORT: z.string(),
+  DB_PORT: z.string().transform(val => parseInt(val, 10)),
   DB_SSL_ENABLED: z
     .string()
     .transform(val => val === 'true')
@@ -89,7 +89,7 @@ const envSchema = z.object({
   PRODUCTS_API_URL: z.string(),
   API_USER_NAME: z.string(),
   API_PASSWORD: z.string(),
-  PRODUCT_SYNC_INTERVAL: z.string().transform(val => parseInt(val, 10)),
+  PRODUCT_SYNC_INTERVAL: z.string(),
 
   // Azure Key Vault
   AZURE_KEYVAULT: z.string().optional(),

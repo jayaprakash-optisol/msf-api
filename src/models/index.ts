@@ -7,3 +7,4 @@ export * from './parcels.schema';
 export * from './parcelItems.schema';
 export * from './tasks.schema';
 export * from './users.schema';
+export * from './devices.schema';

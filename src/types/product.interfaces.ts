@@ -18,6 +18,7 @@ export interface ProductsFetchOptions {
   mode: number;
   size: number;
   filter: string;
+  page: number;
 }
 
 export interface ApiProductItem {

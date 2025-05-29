@@ -1,7 +1,16 @@
 import { desc, gt } from 'drizzle-orm';
 import { db } from '../config/database.config';
 import { ISyncService, SyncTableName } from '../types';
-import { tasks, parcels, parcelItems, products, shipments, users, guests } from '../models';
+import {
+  tasks,
+  parcels,
+  parcelItems,
+  products,
+  shipments,
+  users,
+  guests,
+  devices,
+} from '../models';
 
 export class SyncService implements ISyncService {
   private static instance: SyncService;
@@ -13,6 +22,7 @@ export class SyncService implements ISyncService {
     shipments,
     users,
     guests,
+    devices,
   };
 
   private constructor() {}

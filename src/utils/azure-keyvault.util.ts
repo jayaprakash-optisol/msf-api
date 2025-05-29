@@ -9,7 +9,6 @@ export class AzureKeyVaultUtil {
   private static instance: AzureKeyVaultUtil;
   private client: SecretClient | null = null;
   private isInitialized = false;
-  private readonly azureKeyVaultUrl: string = process.env.AZURE_KEYVAULT ?? '';
 
   private constructor() {}
 
@@ -32,14 +31,14 @@ export class AzureKeyVaultUtil {
     }
 
     try {
-      if (!this.azureKeyVaultUrl) {
+      if (!process.env.AZURE_KEYVAULT) {
         logger.warn('Azure Key Vault URL not provided in environment variables');
         this.isInitialized = true;
         return;
       }
 
       const credential = new DefaultAzureCredential();
-      this.client = new SecretClient(this.azureKeyVaultUrl, credential);
+      this.client = new SecretClient(process.env.AZURE_KEYVAULT, credential);
       this.isInitialized = true;
       logger.info('Azure Key Vault client initialized successfully');
     } catch (error) {

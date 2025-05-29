@@ -9,6 +9,7 @@ const validTableNames = [
   'shipments',
   'users',
   'guests',
+  'devices',
 ] as const;
 
 export const syncQuerySchema = z.object({

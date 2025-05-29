@@ -4,10 +4,23 @@ paths:
       tags:
         - Sync
       summary: Sync table data
-      description: Fetch all records from a specified table that have been updated after a given date
-      security:
-        - bearerAuth: []
+      description: Fetch all records from a specified table that have been updated after a given date (requires device authentication)
+      security: []
       parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: Device ID for authentication
+          example: 'device-123'
+        - in: header
+          name: x-api-key
+          required: true
+          schema:
+            type: string
+          description: API key for device authentication
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
         - in: query
           name: tableName
           required: true
@@ -116,8 +129,21 @@ paths:
                     success: false
                     error: 'Missing required parameters: tableName and lastSync'
         '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '403':
-          $ref: '#/components/responses/ForbiddenError'
+          description: Unauthorized - Invalid device credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidApiKey:
+                  summary: Invalid API key
+                  value:
+                    success: false
+                    error: 'Invalid API key'
+                missingCredentials:
+                  summary: Missing device credentials
+                  value:
+                    success: false
+                    error: 'Device ID and API key are required'
         '500':
           $ref: '#/components/responses/ServerError'

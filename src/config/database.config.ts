@@ -23,7 +23,7 @@ export const initDatabaseConnection = async (): Promise<void> => {
       user: config.DB_USER,
       password: config.DB_PASSWORD,
       host: config.DB_HOST,
-      port: parseInt(config.DB_PORT ?? '5432'),
+      port: config.DB_PORT,
       max: 20,
       ssl: config.DB_SSL_ENABLED
         ? {

@@ -1,0 +1,223 @@
+paths:
+  /devices:
+    post:
+      tags:
+        - Devices
+      summary: Register a new device
+      description: Register a new device and generate a secure API key
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - deviceId
+              properties:
+                deviceId:
+                  type: string
+                  description: Unique identifier for the device
+                  example: 'device-123'
+                location:
+                  type: string
+                  description: Physical location of the device
+                  example: 'Warehouse A'
+            example:
+              deviceId: 'device-123'
+              location: 'Warehouse A'
+      responses:
+        '201':
+          description: Device registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Device registered successfully'
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: '123e4567-e89b-12d3-a456-426614174000'
+                      deviceId:
+                        type: string
+                        example: 'device-123'
+                      location:
+                        type: string
+                        example: 'Warehouse A'
+                      apiKey:
+                        type: string
+                        description: Generated API key for device authentication (only returned on registration)
+                        example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+                      createdAt:
+                        type: string
+                        format: date-time
+                        example: '2024-01-15T10:30:00.000Z'
+                      updatedAt:
+                        type: string
+                        format: date-time
+                        example: '2024-01-15T10:30:00.000Z'
+        '400':
+          description: Bad request - Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidDeviceId:
+                  summary: Invalid or missing device ID
+                  value:
+                    success: false
+                    error: 'Device ID is required'
+                deviceExists:
+                  summary: Device already exists
+                  value:
+                    success: false
+                    error: 'Device with this ID already exists'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /devices/{id}:
+    get:
+      tags:
+        - Devices
+      summary: Get device by ID
+      description: Retrieve device information by its UUID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Device UUID
+          example: '123e4567-e89b-12d3-a456-426614174000'
+      responses:
+        '200':
+          description: Device found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Device found'
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        example: '123e4567-e89b-12d3-a456-426614174000'
+                      deviceId:
+                        type: string
+                        example: 'device-123'
+                      location:
+                        type: string
+                        example: 'Warehouse A'
+                      createdAt:
+                        type: string
+                        format: date-time
+                        example: '2024-01-15T10:30:00.000Z'
+                      updatedAt:
+                        type: string
+                        format: date-time
+                        example: '2024-01-15T10:30:00.000Z'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Device not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error: 'Device not found'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /devices/validate:
+    post:
+      tags:
+        - Devices
+      summary: Validate device API key
+      description: Validate if a device API key is valid (internal use)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - deviceId
+                - apiKey
+              properties:
+                deviceId:
+                  type: string
+                  description: Device identifier
+                  example: 'device-123'
+                apiKey:
+                  type: string
+                  description: API key to validate
+                  example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+            example:
+              deviceId: 'device-123'
+              apiKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+      responses:
+        '200':
+          description: API key validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'API key is valid'
+                  data:
+                    type: object
+                    properties:
+                      valid:
+                        type: boolean
+                        example: true
+        '400':
+          description: Bad request - Missing parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error: 'Device ID and API key are required'
+        '401':
+          description: Unauthorized - Invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                success: false
+                error: 'Invalid API key'
+        '500':
+          $ref: '#/components/responses/ServerError'

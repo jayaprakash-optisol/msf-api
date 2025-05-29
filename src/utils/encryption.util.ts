@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { logger } from './logger';
 import bcrypt from 'bcrypt';
 import { getEnv } from './config.util';
+import { UnauthorizedError } from './error.util';
 
 // Encryption algorithm
 const ALGORITHM = 'aes-256-gcm';
@@ -92,7 +93,7 @@ export const decrypt = (encryptedData: string): string => {
     return decrypted.toString('utf8');
   } catch (error) {
     logger.error('Decryption failed:', error);
-    throw new Error('Decryption failed');
+    throw new UnauthorizedError('Not a valid key');
   }
 };
 
@@ -116,6 +117,7 @@ export const isEncrypted = (data: any): boolean => {
  */
 export const hashPassword = (password: string): Promise<string> => {
   const saltRoundsValue = getEnv('BCRYPT_SALT_ROUNDS') ?? 10;
-  const saltRounds = typeof saltRoundsValue === 'string' ? parseInt(saltRoundsValue, 10) : saltRoundsValue;
+  const saltRounds =
+    typeof saltRoundsValue === 'string' ? parseInt(saltRoundsValue, 10) : saltRoundsValue;
   return bcrypt.hash(password, saltRounds);
 };

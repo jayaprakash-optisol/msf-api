@@ -1,4 +1,5 @@
 import { logger, getEnv } from '../../utils';
+import { parseRepeatInterval } from '../../utils/common.utils';
 import { BaseQueue, BaseJobData } from '../base-queue';
 
 export interface ProductsFetchJobData extends BaseJobData {
@@ -20,7 +21,11 @@ export class ProductsFetchQueue extends BaseQueue {
       filter: 'type="MED"',
     };
 
-    await this.addRepeatingJob('fetch-products', jobData, getEnv('PRODUCT_SYNC_INTERVAL'));
+    const interval = getEnv('PRODUCT_SYNC_INTERVAL');
+    const repeatOptions = parseRepeatInterval(interval);
+    await this.queue.add('fetch-products', jobData, {
+      repeat: repeatOptions,
+    });
 
     logger.info('✅ Scheduled products fetch job');
   }

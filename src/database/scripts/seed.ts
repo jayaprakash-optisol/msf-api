@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import { db, initDatabaseConnection } from '../../config/database.config';
 import { users, guests } from '../../models';
 import { logger, getEnv } from '../../utils';
+import { env } from '../../config/env.config';
 
 // Hash password function
 const hashPassword = async (password: string): Promise<string> => {
@@ -86,6 +87,7 @@ async function seedGuests() {
 async function seed() {
   try {
     logger.info('✅ Starting database seeding...');
+    await env.initialize();
     await initDatabaseConnection();
 
     await seedUsers();

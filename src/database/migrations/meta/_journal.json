@@ -57,6 +57,13 @@
       "when": 1748365736352,
       "tag": "0007_early_maelstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1748519750083,
+      "tag": "0008_ambitious_lockheed",
+      "breakpoints": true
     }
   ]
 }

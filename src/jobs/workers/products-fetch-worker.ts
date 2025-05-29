@@ -47,6 +47,7 @@ export class ProductsFetchWorker extends BaseWorker {
         mode,
         size,
         filter,
+        page: 1,
       });
 
       await job.updateProgress(50);

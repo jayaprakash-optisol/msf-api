@@ -9,3 +9,4 @@ export * from './pagination.util';
 export * from './responseMessages';
 export * from './azure-keyvault.util';
 export * from './config.util';
+export { encrypt, decrypt, hashPassword } from './encryption.util';

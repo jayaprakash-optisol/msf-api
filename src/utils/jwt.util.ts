@@ -6,6 +6,7 @@ import { logger } from './logger';
 import { getRedisClient } from '../config/redis.config';
 import crypto from 'crypto';
 import { getEnv } from './config.util';
+import { decrypt, encrypt } from './encryption.util';
 
 /**
  * JWT utility functions for token generation and verification
@@ -152,7 +153,9 @@ export class JwtUtil implements IJwtUtil {
       this.storeSession(payload.userId, jti, exp).catch(error => {
         logger.error('Failed to store session:', error);
       });
-      return token;
+
+      const encryptedToken = encrypt(token);
+      return encryptedToken;
     } catch (error) {
       logger.error('Error generating JWT token:', error);
       throw error;
@@ -171,7 +174,8 @@ export class JwtUtil implements IJwtUtil {
         throw new Error('JWT_SECRET is not defined');
       }
 
-      const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
+      const decryptedToken = decrypt(token);
+      const decoded = jwt.verify(decryptedToken, jwtSecret) as JwtPayload;
       // Check if the token is blacklisted (if jti exists)
       if (decoded.jti) {
         const isBlacklisted = await this.isTokenBlacklisted(decoded.jti);
@@ -222,7 +226,8 @@ export class JwtUtil implements IJwtUtil {
    */
   async revokeToken(token: string): Promise<void> {
     try {
-      const decoded = this.decodeToken(token);
+      const decryptedToken = decrypt(token);
+      const decoded = this.decodeToken(decryptedToken);
       if (!decoded) {
         throw new Error('Decode error');
       }

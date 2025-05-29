@@ -8,7 +8,8 @@ export type SyncTableName =
   | 'products'
   | 'shipments'
   | 'users'
-  | 'guests';
+  | 'guests'
+  | 'devices';
 
 /**
  * Sync query parameters
