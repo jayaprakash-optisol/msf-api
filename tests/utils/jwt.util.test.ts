@@ -15,6 +15,12 @@ vi.mock('../../src/utils/logger', () => ({
   },
 }));
 
+// Mock encryption/decryption functions
+vi.mock('../../src/utils/encryption.util', () => ({
+  encrypt: vi.fn((token) => `encrypted_${token}`),
+  decrypt: vi.fn((token) => token.replace('encrypted_', '')),
+}));
+
 // Mock Redis client
 vi.mock('../../src/config/redis.config', () => ({
   getRedisClient: vi.fn(() => ({
@@ -90,8 +96,8 @@ describe('JWT Utilities', () => {
         }
       );
 
-      // Assert the returned token
-      expect(token).toBe('mocked_token');
+      // Assert the returned token (now encrypted)
+      expect(token).toBe('encrypted_mocked_token');
     });
 
     it('should throw error if JWT_SECRET is not defined', () => {
@@ -164,7 +170,7 @@ describe('JWT Utilities', () => {
       // Call the function
       const result = await jwtUtil.verifyToken('valid_token');
 
-      // Assert jwt.verify was called with correct arguments
+      // Assert jwt.verify was called with correct arguments (after decryption)
       expect(jwt.verify).toHaveBeenCalledWith('valid_token', 'test_secret');
 
       // Assert the returned result is the payload
@@ -247,6 +253,47 @@ describe('JWT Utilities', () => {
 
       // Restore the spy
       isTokenBlacklistedSpy.mockRestore();
+    });
+  });
+
+  describe('revokeToken', () => {
+    it('should revoke a token by blacklisting it', async () => {
+      // Mock decodeToken to return a payload with jti and exp
+      const mockDecodeToken = vi.spyOn(jwtUtil, 'decodeToken');
+      mockDecodeToken.mockReturnValueOnce({
+        ...mockJwtPayload,
+        jti: 'test-jti',
+        exp: Math.floor(Date.now() / 1000) + 3600
+      });
+
+      // Mock blacklistToken
+      const mockBlacklistToken = vi.spyOn(jwtUtil, 'blacklistToken');
+      mockBlacklistToken.mockResolvedValueOnce();
+
+      // Call the function
+      await jwtUtil.revokeToken('encrypted_token');
+
+      // Assert decodeToken was called with the decrypted token
+      expect(mockDecodeToken).toHaveBeenCalledWith('token');
+
+      // Assert blacklistToken was called with the correct arguments
+      expect(mockBlacklistToken).toHaveBeenCalledWith('test-jti', expect.any(Number));
+
+      // Restore mocks
+      mockDecodeToken.mockRestore();
+      mockBlacklistToken.mockRestore();
+    });
+
+    it('should throw error if token decoding fails', async () => {
+      // Mock decodeToken to return null
+      const mockDecodeToken = vi.spyOn(jwtUtil, 'decodeToken');
+      mockDecodeToken.mockReturnValueOnce(null);
+
+      // Assert the function throws error
+      await expect(jwtUtil.revokeToken('encrypted_invalid_token')).rejects.toThrow('Decode error');
+
+      // Restore mock
+      mockDecodeToken.mockRestore();
     });
   });
 

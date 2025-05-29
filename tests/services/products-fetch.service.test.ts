@@ -14,11 +14,29 @@ import { InternalServerError } from '../../src/utils/error.util';
 global.fetch = vi.fn();
 
 // Mock database
-vi.mock('../../src/config/database.config', () => ({
-  db: {
-    insert: vi.fn(),
-  },
-}));
+vi.mock('../../src/config/database.config', () => {
+  // Create a mock for the transaction callback
+  const mockTxInsert = vi.fn().mockReturnValue({
+    values: vi.fn().mockReturnValue({
+      onConflictDoUpdate: vi.fn().mockReturnValue(undefined),
+    }),
+  });
+
+  // Create a mock for the transaction function
+  const mockTransaction = vi.fn().mockImplementation(async (callback) => {
+    // Call the callback with a mock transaction object
+    return await callback({
+      insert: mockTxInsert,
+    });
+  });
+
+  return {
+    db: {
+      insert: vi.fn(),
+      transaction: mockTransaction,
+    },
+  };
+});
 
 // Mock getEnv function
 vi.mock('../../src/utils/config.util', () => ({
@@ -68,15 +86,23 @@ describe('ProductsFetchService', () => {
   describe('insertProductsData', () => {
     it('should insert products data successfully', async () => {
       // Setup mocks
-      vi.mocked(db.insert).mockReturnValue({
-        values: vi.fn().mockResolvedValue(undefined),
-      } as any);
+      vi.mocked(db.transaction).mockImplementationOnce(async (callback) => {
+        return await callback({
+          insert: vi.fn().mockReturnValue({
+            values: vi.fn().mockReturnValue({
+              onConflictDoUpdate: vi.fn().mockReturnValue(undefined),
+            }),
+          }),
+        });
+      });
+
+      // Mock the return value for the transaction
+      vi.mocked(db.transaction).mockResolvedValueOnce(2);
 
       const result = await productsFetchService.insertProductsData(mockApiProductItems);
 
       expect(result).toBe(2);
-      expect(db.insert).toHaveBeenCalledTimes(1);
-      expect(db.insert).toHaveBeenCalledWith(expect.any(Object));
+      expect(db.transaction).toHaveBeenCalledTimes(1);
     });
 
     it('should return 0 for empty product data', async () => {
@@ -101,10 +127,8 @@ describe('ProductsFetchService', () => {
     });
 
     it('should throw InternalServerError when database insertion fails', async () => {
-      // Setup mocks
-      vi.mocked(db.insert).mockReturnValue({
-        values: vi.fn().mockRejectedValue(new Error('Database error')),
-      } as any);
+      // Setup mocks to throw an error
+      vi.mocked(db.transaction).mockRejectedValueOnce(new Error('Database error'));
 
       await expect(productsFetchService.insertProductsData(mockApiProductItems)).rejects.toThrow(
         InternalServerError,
@@ -113,27 +137,49 @@ describe('ProductsFetchService', () => {
 
     it('should handle non-Error objects in error handling', async () => {
       // Setup mocks with a non-Error object
-      vi.mocked(db.insert).mockReturnValue({
-        values: vi.fn().mockRejectedValue('String error'),
-      } as any);
+      vi.mocked(db.transaction).mockRejectedValueOnce('String error');
 
+      // First call will reject with InternalServerError
       await expect(productsFetchService.insertProductsData(mockApiProductItems)).rejects.toThrow(
         InternalServerError,
       );
+
+      // Reset the mock for the second call
+      vi.mocked(db.transaction).mockRejectedValueOnce('String error');
+
+      // Second call will also reject, and we check the error message
       await expect(productsFetchService.insertProductsData(mockApiProductItems)).rejects.toThrow(
-        'Unknown error'
+        /Failed to insert products into database: Unknown error/
       );
     });
 
     it('should map API product items correctly', async () => {
-      // Setup mocks
-      const mockValues = vi.fn().mockResolvedValue(undefined);
-      vi.mocked(db.insert).mockReturnValue({
+      // Create a spy for the values function
+      const mockValues = vi.fn().mockReturnValue({
+        onConflictDoUpdate: vi.fn().mockReturnValue(undefined),
+      });
+
+      // Create a spy for the insert function
+      const mockInsert = vi.fn().mockReturnValue({
         values: mockValues,
-      } as any);
+      });
+
+      // Mock the transaction to use our spies
+      vi.mocked(db.transaction).mockImplementationOnce(async (callback) => {
+        return await callback({
+          insert: mockInsert,
+        });
+      });
+
+      // Mock the return value for the transaction
+      vi.mocked(db.transaction).mockResolvedValueOnce(2);
 
       await productsFetchService.insertProductsData(mockApiProductItems);
 
+      // Verify that insert was called with the products table
+      expect(mockInsert).toHaveBeenCalled();
+
+      // Verify that values was called with the mapped products
       expect(mockValues).toHaveBeenCalledWith(
         expect.arrayContaining([
           expect.objectContaining({

@@ -49,11 +49,12 @@ vi.mock('../../src/controllers/sync.controller', () => {
 import syncRoutes from '../../src/routes/sync.routes';
 
 // Mock middleware
-vi.mock('../../src/middleware/auth.middleware', () => ({
-  authenticate: (req, res, next) => {
+vi.mock('../../src/middleware', () => ({
+  authenticateDevice: (req, res, next) => {
     req.user = { id: 1, email: 'admin@example.com', role: 'admin' };
     next();
   },
+  rateLimiter: () => (req, res, next) => next(),
 }));
 
 // Mock validators

@@ -33,7 +33,7 @@ export class ProductsFetchService implements IProductsFetchService {
    */
   async insertProductsData(productData: ApiProductItem[]): Promise<number> {
     try {
-      if (!productData.length) {
+      if (!productData || !productData.length) {
         return 0;
       }
 

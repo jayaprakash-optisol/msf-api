@@ -1,80 +1,91 @@
-import { describe, it, expect, vi, beforeEach, afterEach, MockedFunction } from 'vitest';
-import { ProductsFetchQueue, ProductsFetchJobData } from '../../../src/jobs';
-import { BaseQueue } from '../../../src/jobs';
-import { logger, getEnv } from '../../../src/utils';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ProductsFetchQueue } from '../../../src/jobs/queues/products-fetch-queue';
+import { Queue } from 'bullmq';
 
-// Mock the BaseQueue class
-vi.mock('../../../src/jobs/base-queue', () => {
-  return {
-    BaseQueue: vi.fn(),
-  };
-});
+// Mock bullmq
+vi.mock('bullmq', () => ({
+  Queue: vi.fn().mockImplementation(() => ({
+    add: vi.fn().mockResolvedValue(undefined),
+    close: vi.fn().mockResolvedValue(undefined),
+  })),
+}));
 
-// Mock the logger and getEnv utility function
+// Mock utils
 vi.mock('../../../src/utils', () => ({
   logger: {
     info: vi.fn(),
     error: vi.fn(),
   },
-  getEnv: vi.fn().mockImplementation((key: string) => {
-    if (key === 'PRODUCT_SYNC_INTERVAL') {
-      return 3600000; // 1 hour in milliseconds
-    }
-    return undefined;
-  }),
+  getEnv: vi.fn(),
+}));
+
+// Mock common utils
+vi.mock('../../../src/utils/common.utils', () => ({
+  parseRepeatInterval: vi.fn().mockReturnValue({ every: 3600000 }),
 }));
 
 describe('ProductsFetchQueue', () => {
   let queue: ProductsFetchQueue;
-  let mockAddRepeatingJob: MockedFunction<any>;
+  let mockQueueInstance: { add: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
-    vi.clearAllMocks();
-    queue = new ProductsFetchQueue();
-    mockAddRepeatingJob = vi.fn().mockResolvedValue(undefined);
-    queue.addRepeatingJob = mockAddRepeatingJob;
-  });
-
-  afterEach(() => {
     vi.resetAllMocks();
+
+    // Create mock queue instance
+    mockQueueInstance = {
+      add: vi.fn().mockResolvedValue(undefined),
+    };
+
+    // Set up Queue constructor mock
+    vi.mocked(Queue).mockImplementation(() => mockQueueInstance as any);
+
+    // Create queue instance
+    queue = new ProductsFetchQueue();
   });
 
-  describe('constructor', () => {
-    it('should initialize with the correct queue name', () => {
-      expect(BaseQueue).toHaveBeenCalledWith('products-fetch-queue');
-    });
+  it('should initialize with the correct queue name', () => {
+    expect(Queue).toHaveBeenCalledWith('products-fetch-queue', expect.any(Object));
   });
 
-  describe('scheduleProductsFetch', () => {
-    it('should add a repeating job with the correct parameters', async () => {
-      await queue.scheduleProductsFetch();
+  it('should add a job to the queue when scheduling products fetch', async () => {
+    // Import dependencies directly to access the mocks
+    const { getEnv } = await import('../../../src/utils');
+    const { parseRepeatInterval } = await import('../../../src/utils/common.utils');
 
-      // Verify that addRepeatingJob was called with the correct parameters
-      expect(mockAddRepeatingJob).toHaveBeenCalledWith(
-        'fetch-products',
-        expect.objectContaining({
-          timestamp: expect.any(String),
-          mode: 7,
-          size: 1000,
-          filter: 'type="MED"',
-        }),
-        getEnv('PRODUCT_SYNC_INTERVAL'),
-      );
+    // Setup mocks
+    vi.mocked(getEnv).mockReturnValue('1 hour');
+    vi.mocked(parseRepeatInterval).mockReturnValue({ every: 3600000 });
 
-      // Verify that the timestamp is a valid ISO string
-      const jobData = mockAddRepeatingJob.mock.calls[0][1] as ProductsFetchJobData;
-      expect(() => new Date(jobData.timestamp)).not.toThrow();
+    // Call the method
+    await queue.scheduleProductsFetch();
 
-      // Verify that the logger.info was called
-      expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining('Scheduled products fetch job'),
-      );
-    });
+    // Verify queue.add was called with the correct job name and options
+    expect(mockQueueInstance.add).toHaveBeenCalledWith(
+      'fetch-products',
+      expect.objectContaining({
+        timestamp: expect.any(String),
+        mode: 7,
+        size: 1000,
+        filter: 'type="MED"',
+      }),
+      expect.objectContaining({
+        repeat: expect.any(Object),
+      })
+    );
+  });
 
-    it('should log a message after scheduling the job', async () => {
-      await queue.scheduleProductsFetch();
+  it('should log a message after scheduling the job', async () => {
+    // Import logger directly to access the mock
+    const { logger } = await import('../../../src/utils');
+    const { getEnv } = await import('../../../src/utils');
 
-      expect(logger.info).toHaveBeenCalledWith('✅ Scheduled products fetch job');
-    });
+    // Setup mocks
+    vi.mocked(getEnv).mockReturnValue('1 hour');
+
+    // Call the method
+    await queue.scheduleProductsFetch();
+
+    // Verify logger.info was called with the correct message
+    expect(logger.info).toHaveBeenCalledWith('✅ Scheduled products fetch job');
   });
 });

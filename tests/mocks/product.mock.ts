@@ -45,6 +45,7 @@ export const mockProductsFetchOptions: ProductsFetchOptions = {
   mode: 1,
   size: 10,
   filter: 'active',
+  page: 1,
 };
 
 export const mockEmptyProductsApiResponse: ProductsApiResponse = {

@@ -34,6 +34,7 @@ vi.mock('../../src/utils', () => ({
   isDevelopment: vi.fn().mockReturnValue(true),
   isProduction: vi.fn().mockReturnValue(false),
   isTest: vi.fn().mockReturnValue(true),
+  createValidator: vi.fn().mockImplementation((schema) => (req, res, next) => next()),
 }));
 
 // Mock the auth controller methods

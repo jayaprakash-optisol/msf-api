@@ -191,6 +191,7 @@ describe('ProductsFetchWorker', () => {
         mode: 7,
         size: 5,
         filter: 'type="MED"',
+        page: 1,
       });
 
       expect(mockJob.updateProgress).toHaveBeenCalledWith(50);
