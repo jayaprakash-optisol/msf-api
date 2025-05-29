@@ -296,7 +296,7 @@ describe('DeviceService', () => {
       await expect(deviceService.registerDevice(deviceData)).rejects.toThrow('Failed to create device');
     });
 
-    it('should throw BadRequestError if newDevice is undefined', async () => {
+    it('should throw BadRequestError if newDevice is null', async () => {
       // Setup mock for _ensureDevice (device doesn't exist)
       vi.mocked(db.select).mockImplementationOnce(() => ({
         from: vi.fn().mockReturnValue({
@@ -306,10 +306,10 @@ describe('DeviceService', () => {
         }),
       }));
 
-      // Setup mock for db.insert (returns undefined for newDevice)
+      // Setup mock for db.insert (returns null for newDevice)
       vi.mocked(db.insert).mockImplementationOnce(() => ({
         values: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([undefined]),
+          returning: vi.fn().mockResolvedValue([null]),
         }),
       }));
 
@@ -336,6 +336,58 @@ describe('DeviceService', () => {
       vi.mocked(db.insert).mockImplementationOnce(() => ({
         values: vi.fn().mockReturnValue({
           returning: vi.fn().mockResolvedValue([]),
+        }),
+      }));
+
+      const deviceData = {
+        deviceId: 'test-device-id',
+        name: 'Test Device',
+        type: 'mobile',
+      };
+
+      await expect(deviceService.registerDevice(deviceData)).rejects.toThrow('Failed to create device');
+    });
+
+    it('should throw BadRequestError if db.insert returns undefined in array', async () => {
+      // Setup mock for _ensureDevice (device doesn't exist)
+      vi.mocked(db.select).mockImplementationOnce(() => ({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockReturnValue([]),
+          }),
+        }),
+      }));
+
+      // Setup mock for db.insert to return an array with undefined
+      vi.mocked(db.insert).mockImplementationOnce(() => ({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([undefined]),
+        }),
+      }));
+
+      const deviceData = {
+        deviceId: 'test-device-id',
+        name: 'Test Device',
+        type: 'mobile',
+      };
+
+      await expect(deviceService.registerDevice(deviceData)).rejects.toThrow('Failed to create device');
+    });
+
+    it('should throw BadRequestError if db.insert returns empty object in array', async () => {
+      // Setup mock for _ensureDevice (device doesn't exist)
+      vi.mocked(db.select).mockImplementationOnce(() => ({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockReturnValue([]),
+          }),
+        }),
+      }));
+
+      // Setup mock for db.insert to return an array with an empty object
+      vi.mocked(db.insert).mockImplementationOnce(() => ({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([{}]),
         }),
       }));
 
