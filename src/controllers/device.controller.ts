@@ -26,6 +26,7 @@ export class DeviceController {
    */
   getDeviceById = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params;
+    console.log('id', id);
     const result = await this.deviceService.getDeviceById(id);
 
     sendSuccess(res, result.data, result.message);

@@ -5,7 +5,6 @@ import { BaseQueue, BaseJobData } from '../base-queue';
 export interface ProductsFetchJobData extends BaseJobData {
   mode: number;
   size: number;
-  filter: string;
 }
 
 export class ProductsFetchQueue extends BaseQueue {
@@ -18,7 +17,6 @@ export class ProductsFetchQueue extends BaseQueue {
       timestamp: new Date().toISOString(),
       mode: 7,
       size: 1000,
-      filter: 'type="MED"',
     };
 
     const interval = getEnv('PRODUCT_SYNC_INTERVAL');
@@ -27,6 +25,6 @@ export class ProductsFetchQueue extends BaseQueue {
       repeat: repeatOptions,
     });
 
-    logger.info('✅ Scheduled products fetch job');
+    logger.info('✅ Scheduled products fetch job with date-based filtering');
   }
 }

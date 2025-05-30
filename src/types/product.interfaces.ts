@@ -45,4 +45,27 @@ export interface IProductsFetchService {
    * Insert fetched product data into products table
    */
   insertProductsData(productData: ApiProductItem[]): Promise<number>;
+
+  /**
+   * Get the last update date from Redis
+   */
+  getLastUpdateDate(): Promise<Date | null>;
+
+  /**
+   * Set the last update date in Redis
+   */
+  setLastUpdateDate(date: Date): Promise<void>;
+
+  /**
+   * Build filter string with date filtering for most recent updates
+   */
+  buildDateFilter(lastUpdateDate: Date | null, productType?: string): string;
+
+  /**
+   * Fetch products with automatic date filtering based on last sync
+   */
+  fetchProductsWithDateFilter(
+    credentials: { login: string; password: string },
+    options?: { mode?: number; size?: number; productType?: string; page?: number },
+  ): Promise<ServiceResponse<ProductsApiResponse>>;
 }

@@ -60,6 +60,8 @@ vi.mock('../../src/middleware', () => ({
 // Mock validators
 vi.mock('../../src/validators', () => ({
   validateSyncQuery: (req, res, next) => next(),
+  validateManualSync: (req, res, next) => next(),
+  validateResetLastUpdate: (req, res, next) => next(),
 }));
 
 describe('Sync Routes (Integration)', () => {

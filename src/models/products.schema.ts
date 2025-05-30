@@ -3,7 +3,7 @@ import { pgTable, timestamp, varchar, uuid, json, jsonb } from 'drizzle-orm/pg-c
 export const products = pgTable('products', {
   id: uuid('id').primaryKey().defaultRandom(),
   unidataId: varchar('unidata_id'),
-  productCode: varchar('product_code'),
+  productCode: varchar('product_code').unique(),
   productDescription: varchar('product_description'),
   type: varchar('type'),
   state: varchar('state'),

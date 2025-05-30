@@ -66,7 +66,6 @@ describe('ProductsFetchQueue', () => {
         timestamp: expect.any(String),
         mode: 7,
         size: 1000,
-        filter: 'type="MED"',
       }),
       expect.objectContaining({
         repeat: expect.any(Object),
@@ -86,6 +85,6 @@ describe('ProductsFetchQueue', () => {
     await queue.scheduleProductsFetch();
 
     // Verify logger.info was called with the correct message
-    expect(logger.info).toHaveBeenCalledWith('✅ Scheduled products fetch job');
+    expect(logger.info).toHaveBeenCalledWith('✅ Scheduled products fetch job with date-based filtering');
   });
 });

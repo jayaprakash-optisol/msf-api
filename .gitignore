@@ -8,7 +8,6 @@ yarn.lock
 .cursor/
 .sonar/
 .scannerwork/
-scripts/
 
 src/database/scripts/seed.ts
 

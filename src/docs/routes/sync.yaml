@@ -5,7 +5,8 @@ paths:
         - Sync
       summary: Sync table data
       description: Fetch all records from a specified table that have been updated after a given date (requires device authentication)
-      security: []
+      security:
+        - DeviceAuth: [] # assuming `DeviceAuth` is defined in components/securitySchemes
       parameters:
         - in: header
           name: x-device-id
@@ -57,19 +58,14 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: 'Found 5 users records updated after 2024-01-01T00:00:00.000Z'
+                    example: 'Found 2 users records updated after 2024-01-01T00:00:00.000Z'
                   data:
                     type: array
                     items:
                       oneOf:
                         - $ref: '#/components/schemas/User'
-                        - $ref: '#/components/schemas/Guest'
                         - $ref: '#/components/schemas/Product'
-                        - $ref: '#/components/schemas/Task'
-                        - $ref: '#/components/schemas/Parcel'
-                        - $ref: '#/components/schemas/ParcelItem'
-                        - $ref: '#/components/schemas/Shipment'
-                    description: Array of records from the specified table
+                    description: Array of records updated after the specified date
               examples:
                 users:
                   summary: Users sync response
@@ -117,33 +113,310 @@ paths:
                   summary: Invalid table name
                   value:
                     success: false
-                    error: 'Invalid tableName. Must be one of: tasks, parcels, parcelItems, products, shipments, users, guests'
+                    error: 'Validation error: tableName: tableName must be one of: tasks, parcels, parcelItems, products, shipments, users, guests'
                 invalidDate:
                   summary: Invalid date format
                   value:
                     success: false
-                    error: 'Invalid lastSync date format. Must be a valid ISO 8601 date-time string'
-                missingParameters:
-                  summary: Missing required parameters
-                  value:
-                    success: false
-                    error: 'Missing required parameters: tableName and lastSync'
+                    error: 'Validation error: lastSync: lastSync must be a valid ISO date string'
         '401':
-          description: Unauthorized - Invalid device credentials
+          description: Unauthorized - Invalid device authentication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /sync/products/status:
+    get:
+      tags:
+        - Products Sync
+      summary: Get product sync status
+      description: Get current product sync status including last update date and configuration
+      security:
+        - DeviceAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: Device ID for authentication
+        - in: header
+          name: x-api-key
+          required: true
+          schema:
+            type: string
+          description: API key for device authentication
+      responses:
+        '200':
+          description: Product sync status retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Product sync status retrieved successfully'
+                  data:
+                    type: object
+                    properties:
+                      lastSyncDate:
+                        type: string
+                        format: date-time
+                        nullable: true
+                        example: '2024-01-20T10:30:00.000Z'
+                      syncConfigured:
+                        type: boolean
+                        example: true
+                      nextSyncInfo:
+                        type: string
+                        example: 'Automatic sync runs every week based on PRODUCT_SYNC_INTERVAL environment variable'
+
+  /sync/products/config:
+    get:
+      tags:
+        - Products Sync
+      summary: Get product sync configuration
+      description: Get current product sync configuration settings
+      security:
+        - DeviceAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: Device ID for authentication
+        - in: header
+          name: x-api-key
+          required: true
+          schema:
+            type: string
+          description: API key for device authentication
+      responses:
+        '200':
+          description: Product sync configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Product sync configuration retrieved successfully'
+                  data:
+                    type: object
+                    properties:
+                      apiUrl:
+                        type: string
+                        example: 'https://testing.unidata.msf.org/msf-mdm-unidata/rest/ud-api/v1/articles'
+                      syncInterval:
+                        type: string
+                        example: '168' # 1 week in hours
+                      hasCredentials:
+                        type: boolean
+                        example: true
+                      productType:
+                        type: string
+                        example: 'MED'
+                      defaultPageSize:
+                        type: number
+                        example: 1000
+                      mode:
+                        type: number
+                        example: 7
+
+  /sync/products/manual:
+    post:
+      tags:
+        - Products Sync
+      summary: Trigger manual product sync
+      description: Manually trigger a product sync operation with optional validation
+      security:
+        - DeviceAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: Device ID for authentication
+        - in: header
+          name: x-api-key
+          required: true
+          schema:
+            type: string
+          description: API key for device authentication
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resetLastUpdate:
+                  type: boolean
+                  description: Whether to reset last update date before sync (forces full sync)
+                  example: false
+                  default: false
+            examples:
+              defaultSync:
+                summary: Regular incremental sync
+                value: {}
+              resetSync:
+                summary: Full sync (reset last update)
+                value:
+                  resetLastUpdate: true
+      responses:
+        '200':
+          description: Manual product sync completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Manual product sync completed successfully'
+                  data:
+                    type: object
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      fetchedProducts:
+                        type: number
+                        example: 150
+                      insertedProducts:
+                        type: number
+                        example: 150
+                      lastSyncDate:
+                        type: string
+                        format: date-time
+                        nullable: true
+                        example: '2024-01-20T10:30:00.000Z'
+                      currentSyncDate:
+                        type: string
+                        format: date-time
+                        example: '2024-01-21T10:30:00.000Z'
+                      resetLastUpdate:
+                        type: boolean
+                        example: false
+        '400':
+          description: Bad request - Invalid parameters or API credentials not configured
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               examples:
-                invalidApiKey:
-                  summary: Invalid API key
+                credentialsNotConfigured:
+                  summary: API credentials not configured
                   value:
                     success: false
-                    error: 'Invalid API key'
-                missingCredentials:
-                  summary: Missing device credentials
+                    error: 'API credentials not configured'
+                invalidRequestBody:
+                  summary: Invalid request body
                   value:
                     success: false
-                    error: 'Device ID and API key are required'
-        '500':
-          $ref: '#/components/responses/ServerError'
+                    error: 'Validation error: resetLastUpdate: Expected boolean, received string'
+
+  /sync/products/reset:
+    post:
+      tags:
+        - Products Sync
+      summary: Reset last update date
+      description: Reset the last update date for product sync with validation
+      security:
+        - DeviceAuth: []
+      parameters:
+        - in: header
+          name: x-device-id
+          required: true
+          schema:
+            type: string
+          description: Device ID for authentication
+        - in: header
+          name: x-api-key
+          required: true
+          schema:
+            type: string
+          description: API key for device authentication
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                daysAgo:
+                  type: integer
+                  description: Number of days ago to set as last update date
+                  minimum: 1
+                  maximum: 365
+                  example: 7
+                  default: 7
+            examples:
+              defaultReset:
+                summary: Reset to 7 days ago (default)
+                value: {}
+              customReset:
+                summary: Reset to 30 days ago
+                value:
+                  daysAgo: 30
+      responses:
+        '200':
+          description: Last update date reset successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: 'Last update date reset to 7 days ago'
+                  data:
+                    type: object
+                    properties:
+                      resetDate:
+                        type: string
+                        format: date-time
+                        example: '2024-01-14T10:30:00.000Z'
+                      daysAgo:
+                        type: number
+                        example: 7
+        '400':
+          description: Bad request - Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidDaysAgo:
+                  summary: Invalid daysAgo value
+                  value:
+                    success: false
+                    error: 'Validation error: daysAgo: daysAgo must be at least 1'
+                exceededMaxDays:
+                  summary: daysAgo exceeds maximum
+                  value:
+                    success: false
+                    error: 'Validation error: daysAgo: daysAgo cannot exceed 365 days'

@@ -26,10 +26,14 @@ vi.mock('../../../src/jobs/base-worker', () => {
 vi.mock('../../../src/services/products-fetch.service', () => {
   const mockFetchProducts = vi.fn();
   const mockInsertProductsData = vi.fn();
+  const mockGetLastUpdateDate = vi.fn();
+  const mockFetchProductsWithDateFilter = vi.fn();
 
   const mockInstance = {
     fetchProducts: mockFetchProducts,
     insertProductsData: mockInsertProductsData,
+    getLastUpdateDate: mockGetLastUpdateDate,
+    fetchProductsWithDateFilter: mockFetchProductsWithDateFilter,
   };
 
   return {
@@ -85,6 +89,8 @@ describe('ProductsFetchWorker', () => {
     mockProductsFetchService = {
       fetchProducts: vi.fn(),
       insertProductsData: vi.fn(),
+      getLastUpdateDate: vi.fn().mockResolvedValue(null),
+      fetchProductsWithDateFilter: vi.fn(),
     };
 
     // Update the mock to return our instance
@@ -163,8 +169,8 @@ describe('ProductsFetchWorker', () => {
 
   describe('processJob', () => {
     it('should process a job successfully', async () => {
-      // Mock the fetchProducts method to return a successful response
-      mockProductsFetchService.fetchProducts.mockResolvedValueOnce({
+      // Mock the fetchProductsWithDateFilter method to return a successful response
+      mockProductsFetchService.fetchProductsWithDateFilter.mockResolvedValueOnce({
         data: {
           data: [{ id: 1 }, { id: 2 }],
           rows: [{ id: 1 }, { id: 2 }],
@@ -180,23 +186,25 @@ describe('ProductsFetchWorker', () => {
         expect.stringContaining('Processing products fetch job'),
       );
       expect(mockJob.updateProgress).toHaveBeenCalledWith(10);
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Job data:'));
       expect(mockJob.updateProgress).toHaveBeenCalledWith(30);
       expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Starting products fetch'));
 
       // Verify that the service methods were called with the correct parameters
-      expect(mockProductsFetchService.fetchProducts).toHaveBeenCalledWith({
-        login: 'test-user',
-        password: 'test-password',
-        mode: 7,
-        size: 5,
-        filter: 'type="MED"',
-        page: 1,
-      });
+      expect(mockProductsFetchService.fetchProductsWithDateFilter).toHaveBeenCalledWith(
+        {
+          login: 'test-user',
+          password: 'test-password',
+        },
+        {
+          mode: 7,
+          size: 5,
+          productType: 'MED',
+        },
+      );
 
       expect(mockJob.updateProgress).toHaveBeenCalledWith(50);
       expect(mockJob.log).toHaveBeenCalledWith(
-        expect.stringContaining('Successfully fetched 2 products'),
+        expect.stringContaining('Product sync completed - processed 2 products'),
       );
 
       // Verify that insertProductsData was called with the correct parameters
@@ -206,7 +214,7 @@ describe('ProductsFetchWorker', () => {
       ]);
 
       expect(mockJob.log).toHaveBeenCalledWith(
-        expect.stringContaining('Successfully inserted 2 products'),
+        expect.stringContaining('Successfully inserted/updated'),
       );
       expect(mockJob.updateProgress).toHaveBeenCalledWith(100);
       expect(mockJob.log).toHaveBeenCalledWith(
@@ -215,8 +223,8 @@ describe('ProductsFetchWorker', () => {
     });
 
     it('should handle case when no products are returned', async () => {
-      // Mock the fetchProducts method to return an empty response
-      mockProductsFetchService.fetchProducts.mockResolvedValueOnce({
+      // Mock the fetchProductsWithDateFilter method to return an empty response
+      mockProductsFetchService.fetchProductsWithDateFilter.mockResolvedValueOnce({
         data: {
           data: [],
           rows: [],
@@ -232,22 +240,20 @@ describe('ProductsFetchWorker', () => {
         expect.stringContaining('Processing products fetch job'),
       );
       expect(mockJob.updateProgress).toHaveBeenCalledWith(10);
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Job data:'));
       expect(mockJob.updateProgress).toHaveBeenCalledWith(30);
       expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Starting products fetch'));
 
       // Verify that the service methods were called
-      expect(mockProductsFetchService.fetchProducts).toHaveBeenCalled();
+      expect(mockProductsFetchService.fetchProductsWithDateFilter).toHaveBeenCalled();
 
       expect(mockJob.updateProgress).toHaveBeenCalledWith(50);
       expect(mockJob.log).toHaveBeenCalledWith(
-        expect.stringContaining('Successfully fetched 0 products'),
+        expect.stringContaining('No new or updated products found since last sync'),
       );
 
       // Verify that insertProductsData was not called
       expect(mockProductsFetchService.insertProductsData).not.toHaveBeenCalled();
 
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('No products to insert'));
       expect(mockJob.updateProgress).toHaveBeenCalledWith(100);
       expect(mockJob.log).toHaveBeenCalledWith(
         expect.stringContaining('Products fetch job completed successfully'),
@@ -255,9 +261,9 @@ describe('ProductsFetchWorker', () => {
     });
 
     it('should handle errors during job processing', async () => {
-      // Mock the fetchProducts method to throw an error
+      // Mock the fetchProductsWithDateFilter method to throw an error
       const error = new Error('API error');
-      mockProductsFetchService.fetchProducts.mockRejectedValueOnce(error);
+      mockProductsFetchService.fetchProductsWithDateFilter.mockRejectedValueOnce(error);
 
       // Call the processJob method and expect it to throw
       await expect(
@@ -270,7 +276,6 @@ describe('ProductsFetchWorker', () => {
         expect.stringContaining('Processing products fetch job'),
       );
       expect(mockJob.updateProgress).toHaveBeenCalledWith(10);
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Job data:'));
       expect(mockJob.updateProgress).toHaveBeenCalledWith(30);
       expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Starting products fetch'));
 
@@ -334,8 +339,8 @@ describe('ProductsFetchWorker', () => {
     });
 
     it('should handle null data in API response', async () => {
-      // Mock the fetchProducts method to return a response with null data
-      mockProductsFetchService.fetchProducts.mockResolvedValueOnce({
+      // Mock the fetchProductsWithDateFilter method to return a response with null data
+      mockProductsFetchService.fetchProductsWithDateFilter.mockResolvedValueOnce({
         data: null,
       });
 
@@ -348,22 +353,20 @@ describe('ProductsFetchWorker', () => {
         expect.stringContaining('Processing products fetch job'),
       );
       expect(mockJob.updateProgress).toHaveBeenCalledWith(10);
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Job data:'));
       expect(mockJob.updateProgress).toHaveBeenCalledWith(30);
       expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('Starting products fetch'));
 
       // Verify that the service methods were called
-      expect(mockProductsFetchService.fetchProducts).toHaveBeenCalled();
+      expect(mockProductsFetchService.fetchProductsWithDateFilter).toHaveBeenCalled();
 
       expect(mockJob.updateProgress).toHaveBeenCalledWith(50);
       expect(mockJob.log).toHaveBeenCalledWith(
-        expect.stringContaining('Successfully fetched 0 products'),
+        expect.stringContaining('No new or updated products found since last sync'),
       );
 
       // Verify that insertProductsData was not called
       expect(mockProductsFetchService.insertProductsData).not.toHaveBeenCalled();
 
-      expect(mockJob.log).toHaveBeenCalledWith(expect.stringContaining('No products to insert'));
       expect(mockJob.updateProgress).toHaveBeenCalledWith(100);
       expect(mockJob.log).toHaveBeenCalledWith(
         expect.stringContaining('Products fetch job completed successfully'),
