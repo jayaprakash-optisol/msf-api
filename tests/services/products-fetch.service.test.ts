@@ -9,15 +9,21 @@ import {
 import { ProductsFetchService } from '../../src/services/products-fetch.service';
 import { db } from '../../src/config/database.config';
 import { InternalServerError } from '../../src/utils/error.util';
+import { logger } from '../../src/utils';
 
 // Mock fetch globally
 global.fetch = vi.fn();
 
 // Mock Redis client
+const redisMocks = vi.hoisted(() => ({
+  mockRedisGet: vi.fn().mockResolvedValue(null),
+  mockRedisSet: vi.fn().mockResolvedValue('OK')
+}));
+
 vi.mock('../../src/config/redis.config', () => ({
   getRedisClient: vi.fn().mockReturnValue({
-    get: vi.fn().mockResolvedValue(null),
-    set: vi.fn().mockResolvedValue('OK'),
+    get: redisMocks.mockRedisGet,
+    set: redisMocks.mockRedisSet,
   }),
 }));
 
@@ -79,6 +85,13 @@ describe('ProductsFetchService', () => {
     // Directly set the baseUrl property
     // @ts-ignore - accessing private property for testing
     productsFetchService.baseUrl = 'https://api.test.com/products';
+
+    // Directly set the redis property with our mocks
+    // @ts-ignore - accessing private property for testing
+    productsFetchService.redis = {
+      get: redisMocks.mockRedisGet,
+      set: redisMocks.mockRedisSet
+    };
   });
 
   describe('getInstance', () => {
@@ -207,6 +220,252 @@ describe('ProductsFetchService', () => {
             updatedAt: expect.any(Date),
           }),
         ]),
+      );
+    });
+  });
+
+  describe('getLastUpdateDate', () => {
+    it('should return a Date object when Redis returns a valid date string', async () => {
+      // Setup mock to return a valid date string
+      const dateStr = '2023-01-01T00:00:00.000Z';
+      redisMocks.mockRedisGet.mockResolvedValueOnce(dateStr);
+
+      const result = await productsFetchService.getLastUpdateDate();
+
+      expect(result).toBeInstanceOf(Date);
+      expect(result?.toISOString()).toBe(dateStr);
+      expect(redisMocks.mockRedisGet).toHaveBeenCalledWith('product_sync:last_update_date');
+    });
+
+    it('should return null when Redis returns null', async () => {
+      // Setup mock to return null
+      redisMocks.mockRedisGet.mockResolvedValueOnce(null);
+
+      const result = await productsFetchService.getLastUpdateDate();
+
+      expect(result).toBeNull();
+      expect(redisMocks.mockRedisGet).toHaveBeenCalledWith('product_sync:last_update_date');
+    });
+
+    it('should return null and log error when Redis throws an error', async () => {
+      // Setup mock to throw an error
+      const error = new Error('Redis connection error');
+      redisMocks.mockRedisGet.mockRejectedValueOnce(error);
+
+      // Mock logger.error
+      const loggerErrorSpy = vi.spyOn(logger, 'error');
+
+      const result = await productsFetchService.getLastUpdateDate();
+
+      expect(result).toBeNull();
+      expect(redisMocks.mockRedisGet).toHaveBeenCalledWith('product_sync:last_update_date');
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        'Error retrieving last update date from Redis:',
+        error
+      );
+    });
+  });
+
+  describe('setLastUpdateDate', () => {
+    it('should set the date in Redis successfully', async () => {
+      // Setup mock
+      redisMocks.mockRedisSet.mockResolvedValueOnce('OK');
+
+      // Mock logger.info
+      const loggerInfoSpy = vi.spyOn(logger, 'info');
+
+      const date = new Date('2023-01-01T00:00:00.000Z');
+      await productsFetchService.setLastUpdateDate(date);
+
+      expect(redisMocks.mockRedisSet).toHaveBeenCalledWith(
+        'product_sync:last_update_date',
+        date.toISOString()
+      );
+      expect(loggerInfoSpy).toHaveBeenCalledWith(
+        `Set last update date to: ${date.toISOString()}`
+      );
+    });
+
+    it('should throw error when Redis set fails', async () => {
+      // Setup mock to throw an error
+      const error = new Error('Redis connection error');
+      redisMocks.mockRedisSet.mockRejectedValueOnce(error);
+
+      // Mock logger.error
+      const loggerErrorSpy = vi.spyOn(logger, 'error');
+
+      const date = new Date('2023-01-01T00:00:00.000Z');
+      await expect(productsFetchService.setLastUpdateDate(date)).rejects.toThrow(error);
+
+      expect(redisMocks.mockRedisSet).toHaveBeenCalledWith(
+        'product_sync:last_update_date',
+        date.toISOString()
+      );
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        'Error setting last update date in Redis:',
+        error
+      );
+    });
+  });
+
+  describe('buildDateFilter', () => {
+    it('should return only type filter when lastUpdateDate is null', () => {
+      const result = productsFetchService.buildDateFilter(null);
+      expect(result).toBe('(type="MED")');
+    });
+
+    it('should return combined filter when lastUpdateDate is provided', () => {
+      const date = new Date('2023-01-01T00:00:00.000Z');
+      const result = productsFetchService.buildDateFilter(date);
+      expect(result).toBe(
+        '(type="MED") and (date-greater-or-equal(./metaData/mostRecentUpdate,\'2023-01-01T00:00:00.000Z\'))'
+      );
+    });
+
+    it('should use custom productType when provided', () => {
+      const date = new Date('2023-01-01T00:00:00.000Z');
+      const result = productsFetchService.buildDateFilter(date, 'CUSTOM');
+      expect(result).toBe(
+        '(type="CUSTOM") and (date-greater-or-equal(./metaData/mostRecentUpdate,\'2023-01-01T00:00:00.000Z\'))'
+      );
+    });
+  });
+
+  describe('fetchProductsWithDateFilter', () => {
+    beforeEach(() => {
+      // Reset mocks
+      vi.resetAllMocks();
+
+      // Setup productsFetchService again
+      // @ts-ignore
+      ProductsFetchService.instance = undefined;
+      productsFetchService = ProductsFetchService.getInstance();
+
+      // @ts-ignore - accessing private property for testing
+      productsFetchService.baseUrl = 'https://api.test.com/products';
+    });
+
+    it('should fetch products with date filter using existing lastUpdateDate', async () => {
+      // Setup mocks
+      const lastUpdateDate = new Date('2023-01-01T00:00:00.000Z');
+      redisMocks.mockRedisGet.mockResolvedValueOnce(lastUpdateDate.toISOString());
+
+      // Spy on methods
+      const getLastUpdateDateSpy = vi.spyOn(productsFetchService, 'getLastUpdateDate');
+      const buildDateFilterSpy = vi.spyOn(productsFetchService, 'buildDateFilter');
+      const fetchProductsSpy = vi.spyOn(productsFetchService, 'fetchProducts');
+      const setLastUpdateDateSpy = vi.spyOn(productsFetchService, 'setLastUpdateDate')
+        .mockResolvedValue();
+
+      // Mock fetchProducts to return success
+      fetchProductsSpy.mockResolvedValueOnce({
+        success: true,
+        statusCode: StatusCodes.OK,
+        message: 'Products fetched successfully',
+        data: {
+          rows: mockApiProductItems,
+          total: mockApiProductItems.length,
+        },
+      });
+
+      // Call the method
+      const result = await productsFetchService.fetchProductsWithDateFilter(
+        { login: 'test_user', password: 'test_password' },
+        { mode: 7, size: 10, productType: 'MED' }
+      );
+
+      // Verify the result
+      expect(result.success).toBe(true);
+      expect(result.data?.rows).toEqual(mockApiProductItems);
+
+      // Verify method calls
+      expect(getLastUpdateDateSpy).toHaveBeenCalled();
+      expect(buildDateFilterSpy).toHaveBeenCalled();
+      expect(fetchProductsSpy).toHaveBeenCalledWith(expect.objectContaining({
+        login: 'test_user',
+        password: 'test_password',
+        mode: 7,
+        size: 10,
+        filter: expect.any(String),
+        page: 1,
+      }));
+      expect(setLastUpdateDateSpy).toHaveBeenCalled();
+    });
+
+    it('should use fallback date when no lastUpdateDate exists', async () => {
+      // Setup mocks
+      redisMocks.mockRedisGet.mockResolvedValueOnce(null);
+
+      // Spy on methods
+      const getLastUpdateDateSpy = vi.spyOn(productsFetchService, 'getLastUpdateDate');
+      const buildDateFilterSpy = vi.spyOn(productsFetchService, 'buildDateFilter');
+      const fetchProductsSpy = vi.spyOn(productsFetchService, 'fetchProducts');
+
+      // Mock fetchProducts to return success with empty data
+      fetchProductsSpy.mockResolvedValueOnce({
+        success: true,
+        statusCode: StatusCodes.OK,
+        message: 'Products fetched successfully',
+        data: {
+          rows: [],
+          total: 0,
+        },
+      });
+
+      // Mock Date.now for consistent testing
+      const realDateNow = Date.now;
+      const mockNow = new Date('2023-01-08T00:00:00.000Z').getTime();
+      global.Date.now = vi.fn(() => mockNow);
+
+      // Call the method
+      await productsFetchService.fetchProductsWithDateFilter(
+        { login: 'test_user', password: 'test_password' }
+      );
+
+      // Restore Date.now
+      global.Date.now = realDateNow;
+
+      // Verify method calls
+      expect(getLastUpdateDateSpy).toHaveBeenCalled();
+
+      // The fallback date should be a week ago from mockNow
+      const fallbackDate = new Date(mockNow);
+      fallbackDate.setDate(fallbackDate.getDate() - 7);
+
+      expect(buildDateFilterSpy).toHaveBeenCalled();
+      expect(fetchProductsSpy).toHaveBeenCalledWith(expect.objectContaining({
+        filter: expect.any(String),
+      }));
+
+      // Since there are no rows, setLastUpdateDate should not be called
+      expect(redisMocks.mockRedisSet).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors during fetch', async () => {
+      // Setup mocks
+      redisMocks.mockRedisGet.mockResolvedValueOnce(null);
+
+      // Spy on methods
+      const fetchProductsSpy = vi.spyOn(productsFetchService, 'fetchProducts');
+
+      // Mock fetchProducts to throw an error
+      const error = new Error('API error');
+      fetchProductsSpy.mockRejectedValueOnce(error);
+
+      // Mock logger.error
+      const loggerErrorSpy = vi.spyOn(logger, 'error');
+
+      // Call the method and expect it to throw
+      await expect(
+        productsFetchService.fetchProductsWithDateFilter(
+          { login: 'test_user', password: 'test_password' }
+        )
+      ).rejects.toThrow(error);
+
+      // Verify logger was called
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        'Error in fetchProductsWithDateFilter:',
+        error
       );
     });
   });
